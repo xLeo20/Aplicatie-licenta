@@ -1,14 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getMe } = require('../controllers/userController');
+const { 
+  registerUser, 
+  loginUser, 
+  getMe, 
+  getAllUsers 
+} = require('../controllers/userController');
 
-// Ruta pentru inregistrare
+// --- LINIA LIPSA: Importam middleware-ul de protectie ---
+const { protect } = require('../middleware/authMiddleware'); 
+
+// Rute publice
 router.post('/', registerUser);
-
-// Ruta pentru login
 router.post('/login', loginUser);
 
-// Ruta pentru profil (o vom proteja mai tarziu)
-router.post('/me', getMe);
+// Rute private (protejate)
+router.get('/me', protect, getMe); // Si ruta de profil trebuie protejata
+router.get('/all', protect, getAllUsers); // Ruta de admin
 
 module.exports = router;

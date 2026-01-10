@@ -93,9 +93,20 @@ const generateToken = (id) => {
     expiresIn: '30d', // Expira in 30 de zile
   });
 };
+// @desc    Preia toți utilizatorii (Doar Admin)
+// @route   GET /api/users/all
+// @access  Private/Admin
+const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find({});
+  res.status(200).json(users);
+});
+
+// Nu uita să o adaugi la module.exports jos!
+// module.exports = { ..., getAllUsers }
 
 module.exports = {
   registerUser,
   loginUser,
   getMe,
+  getAllUsers
 };

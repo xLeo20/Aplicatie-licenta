@@ -21,11 +21,22 @@ function Header() {
       </div>
       <ul style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
         {user ? (
-          <li>
-            <button className='btn' onClick={onLogout} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'none', border: 'none', fontSize: '16px' }}>
-              <FaSignOutAlt /> Logout
-            </button>
-          </li>
+          <>
+            {/* Buton vizibil doar pentru ADMIN */}
+            {user.role === 'admin' && (
+              <li>
+                <Link to='/admin' style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <FaUser /> Admin Panel
+                </Link>
+              </li>
+            )}
+
+            <li>
+              <button className='btn' onClick={onLogout} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'none', border: 'none', fontSize: '16px' }}>
+                <FaSignOutAlt /> Logout
+              </button>
+            </li>
+          </>
         ) : (
           <>
             <li>

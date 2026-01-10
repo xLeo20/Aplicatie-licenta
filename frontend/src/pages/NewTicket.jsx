@@ -5,6 +5,7 @@ import { toast } from 'react-toastify'
 import { createTicket, reset } from '../features/tickets/ticketSlice'
 import { FaArrowCircleLeft } from 'react-icons/fa'
 import { Link } from 'react-router-dom'
+import Spinner from '../components/Spinner' // Asigura-te ca ai importat Spinner
 
 function NewTicket() {
   const { user } = useSelector((state) => state.auth)
@@ -12,9 +13,11 @@ function NewTicket() {
     (state) => state.tickets
   )
 
-  const [name] = useState(user.name)
-  const [email] = useState(user.email)
-  const [product, setProduct] = useState('iPhone')
+  // --- MODIFICARE: Folosim ?. (optional chaining) si valoare default '' ---
+  const [name] = useState(user?.name || '')
+  const [email] = useState(user?.email || '')
+  const [product, setProduct] = useState('IT')
+  const [priority, setPriority] = useState('Mica')
   const [description, setDescription] = useState('')
 
   const dispatch = useDispatch()
@@ -35,11 +38,16 @@ function NewTicket() {
 
   const onSubmit = (e) => {
     e.preventDefault()
-    dispatch(createTicket({ product, description }))
+    dispatch(createTicket({ product, description, priority }))
+  }
+
+  // Daca userul nu e incarcat inca, aratam un Spinner in loc sa crape pagina
+  if (!user) {
+      return <Spinner />
   }
 
   if (isLoading) {
-      return <h1 style={{textAlign: 'center', marginTop: '50px'}}>Se încarcă...</h1>
+      return <Spinner />
   }
 
   return (
@@ -74,13 +82,28 @@ function NewTicket() {
               onChange={(e) => setProduct(e.target.value)}
               style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '5px' }}
             >
+              <option value='IT'>IT</option>
+              <option value='HR'>HR</option>
+              <option value='Financiar'>Financiar</option>
               <option value='iPhone'>iPhone</option>
               <option value='Macbook'>Macbook</option>
               <option value='iMac'>iMac</option>
               <option value='iPad'>iPad</option>
-              <option value='IT'>IT</option>
-              <option value='HR'>HR</option>
-              <option value='Financiar'>Financiar</option>
+            </select>
+          </div>
+
+          <div className='form-group' style={{ marginBottom: '15px' }}>
+            <label htmlFor='priority'>Nivel Prioritate</label>
+            <select 
+              name='priority' 
+              id='priority' 
+              value={priority} 
+              onChange={(e) => setPriority(e.target.value)}
+              style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '5px' }}
+            >
+              <option value='Mica'>Mică</option>
+              <option value='Medie'>Medie</option>
+              <option value='Mare'>Mare</option>
             </select>
           </div>
 
