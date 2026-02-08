@@ -1,68 +1,253 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --primary-color: #0056b3;
+  --secondary-color: #000000;
+  --text-dark: #333333;
+  --text-light: #828282;
+  --success: #28a745;
+  --error: #dc3545;
+  --radius: 16px;
+  /* Culoare sticla (alb cu transparenta) */
+  --glass-bg: rgba(255, 255, 255, 0.75); 
+  --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  height: 100vh;
+  /* Fundal Gradient animat */
+  background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  color: var(--text-dark);
+  line-height: 1.6;
+  overflow-x: hidden; /* Ascunde scroll orizontal */
+}
+
+/* Animatia Gradientului de fundal */
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+a { text-decoration: none; color: var(--primary-color); }
+ul { list-style: none; }
+
+.container {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+  position: relative;
+  z-index: 10; /* Continutul sta PESTE animatia de fundal */
+}
+
+/* --- GLASSMORPHISM (Efectul de Sticla) --- */
+/* Aplicam acest efect pe toate cardurile */
+.ticket-desc, 
+.ticket-desc-main,
+.profile-card,
+.note-item,
+.form,
+.home-card,
+.ticket-stats > div,
+.ticket,
+.header, /* Headerul devine si el sticla */
+.ticket-filters {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(10px); /* Asta face efectul de "blur" in spate */
+  -webkit-backdrop-filter: blur(10px);
+  border: var(--glass-border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-glass);
+}
+
+/* Header specific */
+.header {
+  margin-bottom: 40px !important;
+  padding: 15px 30px !important;
   display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  justify-content: space-between;
+  align-items: center;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* --- ANIMATIE PARTICULE (Patrate care plutesc) --- */
+.circles {
+  position: fixed; /* Fixat pe ecran */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 1; /* In spatele continutului */
+  pointer-events: none; /* Nu interactioneaza cu mouse-ul */
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+.circles li {
+  position: absolute;
+  display: block;
+  list-style: none;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  animation: animate 25s linear infinite;
+  bottom: -150px;
+}
+
+.circles li:nth-child(1){ left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+.circles li:nth-child(2){ left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; }
+.circles li:nth-child(3){ left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
+.circles li:nth-child(4){ left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; }
+.circles li:nth-child(5){ left: 65%; width: 20px; height: 20px; animation-delay: 0s; }
+.circles li:nth-child(6){ left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
+.circles li:nth-child(7){ left: 35%; width: 150px; height: 150px; animation-delay: 7s; }
+.circles li:nth-child(8){ left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s; }
+.circles li:nth-child(9){ left: 20%; width: 15px; height: 15px; animation-delay: 2s; animation-duration: 35s; }
+.circles li:nth-child(10){ left: 85%; width: 150px; height: 150px; animation-delay: 0s; animation-duration: 11s; }
+
+@keyframes animate {
+  0%{
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+    border-radius: 0;
+  }
+  100%{
+    transform: translateY(-1000px) rotate(720deg);
+    opacity: 0;
+    border-radius: 50%;
+  }
+}
+
+/* Butoane */
+.btn {
+  background: var(--primary-color);
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 50px;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: 0.3s;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+.btn-reverse {
+  background: #fff;
+  color: #333;
+}
+.btn-reverse:hover {
+    background: #f0f0f0;
+}
+
+.btn-danger { background: var(--error); }
+
+/* Formulare */
+.form-control {
+  background: rgba(255,255,255,0.9);
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 10px;
+  width: 100%;
+}
+
+/* --- IMBUNATATIRI VIZUALE --- */
+
+/* 1. Titluri Albe pentru contrast pe fundalul colorat */
+.main-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+  color: #ffffff; /* Text ALB */
+  text-shadow: 0 2px 10px rgba(0,0,0,0.2); /* Umbra fina la text */
+}
+
+.main-subtitle {
+  color: rgba(255, 255, 255, 0.9); /* Alb usor transparent */
+  font-size: 1.3rem;
+  font-weight: 400;
+}
+
+/* 2. Carduri "Frosty" (Mai transparente) */
+.home-card, .header, .profile-card, .ticket-stats > div {
+  /* Fundal mai transparent pentru efect de sticla */
+  background: rgba(255, 255, 255, 0.65) !important; 
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.8) !important; /* Bordura alba evidenta */
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+  border-radius: 20px !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.home-card {
+  padding: 40px !important; /* Mai mult spatiu in interior */
+}
+
+.home-card:hover {
+  transform: translateY(-10px); /* Se ridica mai mult */
+  background: rgba(255, 255, 255, 0.85) !important; /* Devine mai alb la hover */
+  box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+}
+
+/* 3. Iconite colorate in loc de negru */
+.card-icon {
+  color: #e73c7e; /* Rozul din fundal */
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+/* 4. Butoane mai moderne */
+.btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Gradient mov */
+  border: none;
+  color: white;
+  padding: 12px 30px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 15px rgba(118, 75, 162, 0.4);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(118, 75, 162, 0.6);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); /* Inversam gradientul */
+}
+
+/* Butonul "Reverse" (Alb) */
+.btn-reverse {
+  background: #fff !important;
+  color: #764ba2 !important; /* Text mov */
+  border: 2px solid transparent !important;
+}
+
+.btn-reverse:hover {
+  background: #f0f0f0 !important;
+  color: #5a387e !important;
+}
+
+/* Header Tweaks */
+.header {
+  margin-top: 20px;
+  padding: 15px 40px !important;
+}
+
+.header .logo a {
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: -webkit-linear-gradient(#333, #000); /* Gradient pe text */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Header from './components/Header'
@@ -7,44 +7,64 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import NewTicket from './pages/NewTicket'
-import Tickets from './pages/Tickets' // <--- IMPORT NOU
+import Tickets from './pages/Tickets'
 import Ticket from './pages/Ticket'
 import AdminUsers from './pages/AdminUsers'
+import Profile from './pages/Profile'
+import NotFound from './pages/NotFound'
+import { AnimatePresence } from 'framer-motion'
+import PageAnimation from './components/PageAnimation'
+
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Rute Publice */}
+        <Route path='/' element={<PageAnimation><Home /></PageAnimation>} />
+        <Route path='/login' element={<PageAnimation><Login /></PageAnimation>} />
+        <Route path='/register' element={<PageAnimation><Register /></PageAnimation>} />
+        
+        {/* Rute Protejate */}
+        <Route element={<PrivateRoute />}>
+            <Route path='/new-ticket' element={<PageAnimation><NewTicket /></PageAnimation>} />
+            <Route path='/tickets' element={<PageAnimation><Tickets /></PageAnimation>} />
+            <Route path='/ticket/:ticketId' element={<PageAnimation><Ticket /></PageAnimation>} />
+            <Route path='/profile' element={<PageAnimation><Profile /></PageAnimation>} />
+            <Route path='/admin' element={<PageAnimation><AdminUsers /></PageAnimation>} />
+        </Route>
+        
+        <Route path='*' element={<PageAnimation><NotFound /></PageAnimation>} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
 
 function App() {
   return (
     <>
+      {/* --- ANIMATIA DE FUNDAL (Patrate care plutesc) --- */}
+      <div className="area" >
+            <ul className="circles">
+                    <li></li>
+                    <li></li>
+                    <li></li>
+                    <li></li>
+                    <li></li>
+                    <li></li>
+                    <li></li>
+                    <li></li>
+                    <li></li>
+                    <li></li>
+            </ul>
+      </div>
+      {/* ----------------------------------------------- */}
+
       <Router>
-        <div className='container' style={{ width: '100%', maxWidth: '960px', margin: '0 auto', padding: '0 20px' }}>
+        <div className='container'>
           <Header />
-          <Routes>
-            <Route path='/' element={<Home />} />
-            <Route path='/login' element={<Login />} />
-            <Route path='/register' element={<Register />} />
-            
-            {/* Rute Protejate */}
-            <Route path='/new-ticket' element={<PrivateRoute />}>
-              <Route path='/new-ticket' element={<NewTicket />} />
-            </Route>
-
-            <Route path='/tickets' element={<PrivateRoute />}>
-              <Route path='/tickets' element={<Tickets />} /> {/* <--- RUTA NOUA */}
-            </Route>
-
-            <Route path='/tickets' element={<PrivateRoute />}>
-              <Route path='/tickets' element={<Tickets />} />
-            </Route>
-
-            {/* RUTA NOUA PENTRU DETALII TICHET - ATENTIE LA :ticketId */}
-            <Route path='/ticket/:ticketId' element={<PrivateRoute />}>
-              <Route path='/ticket/:ticketId' element={<Ticket />} />
-            </Route>
-            
-            <Route path='/admin' element={<PrivateRoute />}>
-            <Route path='/admin' element={<AdminUsers />} />
-            </Route>
-            
-          </Routes>
+          <AnimatedRoutes />
         </div>
       </Router>
       <ToastContainer />

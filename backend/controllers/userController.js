@@ -1,22 +1,19 @@
 const asyncHandler = require('express-async-handler');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
 const User = require('../models/userModel');
 
-// @desc    Inregistreaza un utilizator nou
-// @route   /api/users
+// @desc    Inregistrare utilizator nou
+// @route   POST /api/users
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, department } = req.body;
+  const { name, email, password, role, department } = req.body;
 
-  // Validare: verificam daca exista toate campurile
   if (!name || !email || !password) {
     res.status(400);
-    throw new Error('Te rog include toate campurile');
+    throw new Error('Te rog completeaza toate campurile');
   }
 
-  // Verificam daca utilizatorul exista deja
   const userExists = await User.findOne({ email });
 
   if (userExists) {
@@ -24,16 +21,15 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new Error('Utilizatorul exista deja');
   }
 
-  // Criptarea parolei (Hash)
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // Crearea utilizatorului
   const user = await User.create({
     name,
     email,
     password: hashedPassword,
-    department: department || 'General' 
+    role: role || 'angajat',
+    department: department || 'General'
   });
 
   if (user) {
@@ -51,15 +47,13 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Logare utilizator
-// @route   /api/users/login
+// @desc    Autentificare utilizator
+// @route   POST /api/users/login
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-
   const user = await User.findOne({ email });
 
-  // Verificam userul si parola
   if (user && (await bcrypt.compare(password, user.password))) {
     res.status(200).json({
       _id: user._id,
@@ -71,42 +65,59 @@ const loginUser = asyncHandler(async (req, res) => {
     });
   } else {
     res.status(401);
-    throw new Error('Date de autentificare invalide');
+    throw new Error('Credențiale invalide');
   }
 });
 
-// @desc    Preia datele utilizatorului curent
-// @route   /api/users/me
+// @desc    Datele utilizatorului curent
+// @route   GET /api/users/me
 // @access  Private
 const getMe = asyncHandler(async (req, res) => {
   const user = {
     id: req.user._id,
     email: req.user.email,
     name: req.user.name,
+    role: req.user.role,
+    department: req.user.department
   };
   res.status(200).json(user);
 });
 
-// Functie pentru generarea Token-ului (JWT)
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '30d', // Expira in 30 de zile
-  });
-};
-// @desc    Preia toți utilizatorii (Doar Admin)
+// @desc    Preia toti utilizatorii (Admin Only)
 // @route   GET /api/users/all
-// @access  Private/Admin
+// @access  Private (Admin)
 const getAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({});
-  res.status(200).json(users);
+    const users = await User.find({});
+    res.status(200).json(users);
 });
 
-// Nu uita să o adaugi la module.exports jos!
-// module.exports = { ..., getAllUsers }
+// --- FUNCTIE NOUA: STERGERE USER ---
+// @desc    Sterge un utilizator
+// @route   DELETE /api/users/:id
+// @access  Private (Admin)
+const deleteUser = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+        res.status(404);
+        throw new Error('Utilizatorul nu a fost gasit');
+    }
+
+    await user.deleteOne();
+    res.status(200).json({ id: req.params.id });
+});
+
+// Genereaza JWT
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: '30d',
+  });
+};
 
 module.exports = {
   registerUser,
   loginUser,
   getMe,
-  getAllUsers
+  getAllUsers,
+  deleteUser // <--- Nu uita sa o exporti!
 };

@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useSelector, useDispatch } from 'react-redux'
-// --- MODIFICARE: Am adaugat assignTicket la importuri ---
 import { getTicket, closeTicket, assignTicket } from '../features/tickets/ticketSlice'
-import { getNotes, createNote, reset as notesReset } from '../features/notes/noteSlice' 
+import { getNotes, createNote } from '../features/notes/noteSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaArrowCircleLeft, FaPlus } from 'react-icons/fa'
+import { FaArrowCircleLeft, FaPlus, FaExclamationTriangle } from 'react-icons/fa' // Am adaugat FaExclamationTriangle
 import { Link } from 'react-router-dom'
 import Spinner from '../components/Spinner'
 import NoteItem from '../components/NoteItem'
 
 function Ticket() {
-  const [modalIsOpen, setModalIsOpen] = useState(false)
+  const [modalIsOpen, setModalIsOpen] = useState(false) // Pentru Note
+  const [confirmationOpen, setConfirmationOpen] = useState(false) // <--- STATE NOU PENTRU CONFIRMARE INCHIDERE
   const [noteText, setNoteText] = useState('')
 
   const { ticket, isLoading, isSuccess, isError, message } = useSelector(
@@ -22,7 +22,6 @@ function Ticket() {
     (state) => state.notes
   )
 
-  // --- ADAGARE: Luam userul ca sa verificam daca e Staff ---
   const { user } = useSelector((state) => state.auth)
 
   const navigate = useNavigate()
@@ -35,17 +34,28 @@ function Ticket() {
     }
 
     dispatch(getTicket(ticketId))
-    dispatch(getNotes(ticketId)) 
+    dispatch(getNotes(ticketId))
     // eslint-disable-next-line
   }, [isError, message, ticketId])
 
-  const onTicketClose = () => {
+  // --- MODIFICARE: Functia care doar DESCHIDE fereastra de confirmare ---
+  const onTicketCloseClick = () => {
+    setConfirmationOpen(true)
+  }
+
+  // --- MODIFICARE: Functia care executa inchiderea reala ---
+  const confirmClose = () => {
     dispatch(closeTicket(ticketId))
     toast.success('Tichetul a fost închis')
+    setConfirmationOpen(false)
     navigate('/tickets')
   }
 
-  // --- ADAGARE: Functia pentru butonul de Assign ---
+  // --- MODIFICARE: Functia de anulare ---
+  const cancelClose = () => {
+    setConfirmationOpen(false)
+  }
+
   const onTicketAssign = () => {
     dispatch(assignTicket(ticketId))
     toast.success('Tichet preluat cu succes!')
@@ -55,7 +65,7 @@ function Ticket() {
     e.preventDefault()
     dispatch(createNote({ noteText, ticketId }))
     setNoteText('')
-    setModalIsOpen(false) 
+    setModalIsOpen(false)
   }
 
   if (isLoading || notesIsLoading) {
@@ -67,7 +77,8 @@ function Ticket() {
   }
 
   return (
-    <div className='ticket-page'>
+    <div className='ticket-page' style={{ position: 'relative' }}> {/* Position relative pentru context */}
+      
       <header className='ticket-header' style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px'}}>
         <Link to='/tickets' className='btn btn-reverse btn-back' style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', textDecoration: 'none', color: '#000', border: '1px solid #ccc', padding: '5px 10px', borderRadius: '5px' }}>
             <FaArrowCircleLeft /> Înapoi
@@ -95,8 +106,6 @@ function Ticket() {
             <p style={{marginBottom: '5px'}}><strong>Dată creare:</strong> {new Date(ticket.createdAt).toLocaleString('ro-RO')}</p>
             <p style={{marginBottom: '5px'}}><strong>Produs:</strong> {ticket.product}</p>
             <p style={{marginBottom: '5px'}}><strong>Prioritate:</strong> {ticket.priority || 'Mica'}</p>
-            
-            {/* --- AFISARE AGENT ASIGNAT --- */}
             <p style={{marginBottom: '5px'}}>
               <strong>Agent Responsabil: </strong> 
               {ticket.assignedTo ? (
@@ -106,9 +115,12 @@ function Ticket() {
               )}
             </p>
         </div>
+        <div className='ticket-desc-main' style={{marginTop: '20px', backgroundColor: '#fff', padding: '15px', borderRadius: '5px', border: '1px solid #e6e6e6'}}>
+            <h3>Descriere Problemă</h3>
+            <p>{ticket.description}</p>
+        </div>
       </div>
 
-     {/* ATENTIE: Trebuie sa aiba "user &&" la inceput */}
       {user && user.role !== 'angajat' && ticket.status === 'new' && (
          <button onClick={onTicketAssign} className='btn' style={{marginBottom: '20px', background: '#004085', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', width: '100%'}}>
            Preia Tichetul (Start Lucru)
@@ -142,11 +154,76 @@ function Ticket() {
         <NoteItem key={note._id} note={note} />
       ))}
 
+      {/* --- BUTONUL DE INCHIDERE (Deschide Modalul) --- */}
       {ticket.status !== 'closed' && (
-        <button onClick={onTicketClose} className='btn btn-block btn-danger' style={{ width: '100%', padding: '10px', background: 'darkred', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '16px', cursor: 'pointer', marginTop: '40px' }}>
+        <button onClick={onTicketCloseClick} className='btn btn-block btn-danger' style={{ width: '100%', padding: '10px', background: 'darkred', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '16px', cursor: 'pointer', marginTop: '40px' }}>
           Închide Tichetul
         </button>
       )}
+
+      {/* --- FEREASTRA MODALĂ DE CONFIRMARE (CUSTOM) --- */}
+      {confirmationOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', // Fundal intunecat semi-transparent
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            padding: '30px',
+            borderRadius: '10px',
+            width: '90%',
+            maxWidth: '400px',
+            textAlign: 'center',
+            boxShadow: '0 5px 15px rgba(0,0,0,0.3)'
+          }}>
+            <FaExclamationTriangle size={40} color="orange" style={{marginBottom: '15px'}} />
+            <h2 style={{marginBottom: '10px'}}>Confirmare</h2>
+            <p style={{marginBottom: '20px'}}>Ești sigur că vrei să închizi acest tichet? Această acțiune este finală.</p>
+            
+            <div style={{display: 'flex', justifyContent: 'space-between', gap: '10px'}}>
+              <button 
+                onClick={confirmClose}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  backgroundColor: 'darkred',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                DA, Închide
+              </button>
+              <button 
+                onClick={cancelClose}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  backgroundColor: '#ccc',
+                  color: 'black',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                NU, Anulează
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
