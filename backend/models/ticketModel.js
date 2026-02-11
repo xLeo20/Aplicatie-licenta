@@ -24,10 +24,15 @@ const ticketSchema = mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ['new', 'open', 'closed'],
+      enum: ['new', 'open', 'closed', 'suspended'],
       default: 'new',
     },
     // --- CAMP NOU PENTRU ASIGNARE ---
+    deadline: {
+        type: Date,
+        required: false
+    },
+
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User', // Face legatura cu colectia de Useri

@@ -14,6 +14,7 @@ import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
 import { AnimatePresence } from 'framer-motion'
 import PageAnimation from './components/PageAnimation'
+import Dashboard from './pages/Dashboard'
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -28,6 +29,7 @@ function AnimatedRoutes() {
         
         {/* Rute Protejate */}
         <Route element={<PrivateRoute />}>
+            <Route path='/dashboard' element={<PageAnimation><Dashboard /></PageAnimation>} />
             <Route path='/new-ticket' element={<PageAnimation><NewTicket /></PageAnimation>} />
             <Route path='/tickets' element={<PageAnimation><Tickets /></PageAnimation>} />
             <Route path='/ticket/:ticketId' element={<PageAnimation><Ticket /></PageAnimation>} />

@@ -5,7 +5,11 @@ const {
   loginUser, 
   getMe, 
   getAllUsers,
-  deleteUser // <--- Importam functia noua
+  deleteUser,
+  createUser, 
+  updateUser,
+  upload,             // <--- Import Multer
+  uploadProfilePhoto  // <--- Import Controller Upload
 } = require('../controllers/userController');
 
 const { protect } = require('../middleware/authMiddleware'); 
@@ -14,16 +18,14 @@ const { protect } = require('../middleware/authMiddleware');
 router.post('/', registerUser);
 router.post('/login', loginUser);
 
-// Rute private
+// Rute private (User Logat)
 router.get('/me', protect, getMe);
+router.post('/upload', protect, upload.single('image'), uploadProfilePhoto); // <--- Ruta Upload Poza
 
 // Rute de Admin
-// Atentie: Aici verificam doar 'protect' (token valid).
-// Verificarea de rol (admin) se face, ideal, in controller sau un middleware separat.
-// Dar pentru simplitate, controller-ul curent returneaza toti userii.
 router.get('/all', protect, getAllUsers); 
-
-// --- RUTA NOUA DE STERGERE ---
-router.delete('/:id', protect, deleteUser);
+router.post('/add', protect, createUser);   
+router.put('/:id', protect, updateUser);    
+router.delete('/:id', protect, deleteUser); 
 
 module.exports = router;

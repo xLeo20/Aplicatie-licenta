@@ -37,15 +37,27 @@ function Home() {
           </Link>
         </div>
 
-        {/* Card 2 */}
-        <div className='home-card'>
-          <FaTicketAlt size={50} className="card-icon" style={{ marginBottom: '20px' }} />
-          <h2 style={{ marginBottom: '15px' }}>Status Solicitări</h2>
-          <p style={{ marginBottom: '20px', color: '#555' }}>
-            Vezi stadiul tichetelor tale, răspunde la mesaje sau verifică istoricul problemelor.
+        {/* Card 2: Dashboard */}
+        <div className='home-card' style={{ /* ... stiluri ... */ }}>
+          <FaTicketAlt size={50} color='#000' style={{ marginBottom: '20px' }} />
+          <h2 style={{ marginBottom: '15px' }}>Dashboard & Statistici</h2>
+          <p style={{ marginBottom: '20px', color: '#666' }}>
+            Vezi o privire de ansamblu asupra sistemului, grafice și tichete urgente.
           </p>
-          <Link to='/tickets' className='btn btn-block'>
-            <FaTicketAlt /> Vezi Tichetele Mele
+          <Link to='/dashboard' className='btn btn-block'> {/* Link catre DASHBOARD */}
+             Mergi la Dashboard
+          </Link>
+        </div>
+
+        {/* Card 3: Istoric Complet */}
+        <div className='home-card' style={{ /* ... stiluri existente ... */ }}>
+          <FaTicketAlt size={50} className="card-icon" style={{ marginBottom: '20px' }} />
+          <h2 style={{ marginBottom: '15px' }}>Istoric Complet</h2>
+          <p style={{ marginBottom: '20px', color: '#666' }}>
+            Accesează lista detaliată a tuturor tichetelor (închise, deschise, suspendate).
+          </p>
+          <Link to='/tickets' className='btn btn-reverse btn-block'>
+             Vezi Lista
           </Link>
         </div>
 

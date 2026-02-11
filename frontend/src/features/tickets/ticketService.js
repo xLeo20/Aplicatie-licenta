@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = 'http://localhost:5000/api/tickets/'
+const API_URL = '/api/tickets/' // Am schimbat in cale relativa pentru proxy, sau lasa http://localhost:5000/api/tickets/ daca nu folosesti proxy
 
 // Creare tichet nou
 const createTicket = async (ticketData, token) => {
@@ -27,8 +27,6 @@ const getTickets = async (token) => {
 
   return response.data
 }
-
-// ... importurile si codul existent ...
 
 // Obtine un singur tichet
 const getTicket = async (ticketId, token) => {
@@ -60,19 +58,27 @@ const closeTicket = async (ticketId, token) => {
   return response.data
 }
 
+// Atribuie tichetul
 const assignTicket = async (ticketId, token) => {
   const config = { headers: { Authorization: `Bearer ${token}` } }
   const response = await axios.put(API_URL + ticketId + '/assign', {}, config)
   return response.data
 }
 
+// --- Suspendă tichetul (NOU) ---
+const suspendTicket = async (ticketId, token) => {
+  const config = { headers: { Authorization: `Bearer ${token}` } }
+  const response = await axios.put(API_URL + ticketId + '/suspend', {}, config)
+  return response.data
+}
+
 const ticketService = {
   createTicket,
   getTickets,
-  getTicket,      // <--- Nou
-  closeTicket,    // <--- Nou
+  getTicket,
+  closeTicket,
   assignTicket,
+  suspendTicket, // <--- Exportam
 }
-
 
 export default ticketService

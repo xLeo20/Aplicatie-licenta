@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv').config();
@@ -24,6 +25,8 @@ app.get('/', (req, res) => {
 // Rute
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/tickets', require('./routes/ticketRoutes'));
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- UTILIZAREA ERROR HANDLER AICI ---
 app.use(errorHandler); 

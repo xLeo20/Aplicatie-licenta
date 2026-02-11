@@ -15,14 +15,11 @@ export const createTicket = createAsyncThunk(
   'tickets/create',
   async (ticketData, thunkAPI) => {
     try {
-      // Luam token-ul din state-ul de auth
       const token = thunkAPI.getState().auth.user.token
       return await ticketService.createTicket(ticketData, token)
     } catch (error) {
       const message =
-        (error.response &&
-          error.response.data &&
-          error.response.data.message) ||
+        (error.response && error.response.data && error.response.data.message) ||
         error.message ||
         error.toString()
       return thunkAPI.rejectWithValue(message)
@@ -39,9 +36,7 @@ export const getTickets = createAsyncThunk(
       return await ticketService.getTickets(token)
     } catch (error) {
       const message =
-        (error.response &&
-          error.response.data &&
-          error.response.data.message) ||
+        (error.response && error.response.data && error.response.data.message) ||
         error.message ||
         error.toString()
       return thunkAPI.rejectWithValue(message)
@@ -49,6 +44,39 @@ export const getTickets = createAsyncThunk(
   }
 )
 
+// Obtine un singur tichet
+export const getTicket = createAsyncThunk(
+  'tickets/get',
+  async (ticketId, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token
+      return await ticketService.getTicket(ticketId, token)
+    } catch (error) {
+      const message =
+        (error.response && error.response.data && error.response.data.message) ||
+        error.message || error.toString()
+      return thunkAPI.rejectWithValue(message)
+    }
+  }
+)
+
+// Inchide tichet
+export const closeTicket = createAsyncThunk(
+  'tickets/close',
+  async (ticketId, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token
+      return await ticketService.closeTicket(ticketId, token)
+    } catch (error) {
+      const message =
+        (error.response && error.response.data && error.response.data.message) ||
+        error.message || error.toString()
+      return thunkAPI.rejectWithValue(message)
+    }
+  }
+)
+
+// Atribuie tichet
 export const assignTicket = createAsyncThunk(
   'tickets/assign',
   async (ticketId, thunkAPI) => {
@@ -56,7 +84,21 @@ export const assignTicket = createAsyncThunk(
       const token = thunkAPI.getState().auth.user.token
       return await ticketService.assignTicket(ticketId, token)
     } catch (error) {
-       // ... cod eroare standard ca la celelalte ...
+       const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString()
+       return thunkAPI.rejectWithValue(message)
+    }
+  }
+)
+
+// --- Suspenda tichet (NOU) ---
+export const suspendTicket = createAsyncThunk(
+  'tickets/suspend',
+  async (ticketId, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token
+      return await ticketService.suspendTicket(ticketId, token)
+    } catch (error) {
+       const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString()
        return thunkAPI.rejectWithValue(message)
     }
   }
@@ -95,9 +137,6 @@ export const ticketSlice = createSlice({
         state.isError = true
         state.message = action.payload
       })
-      // ... in interiorul extraReducers (builder) ...
-
-      // Cazuri pentru getTicket (un singur tichet)
       .addCase(getTicket.pending, (state) => {
         state.isLoading = true
       })
@@ -111,7 +150,6 @@ export const ticketSlice = createSlice({
         state.isError = true
         state.message = action.payload
       })
-      // Cazuri pentru closeTicket
       .addCase(closeTicket.fulfilled, (state, action) => {
         state.isLoading = false
         state.tickets.map((ticket) =>
@@ -121,48 +159,19 @@ export const ticketSlice = createSlice({
         )
         state.ticket = action.payload
       })
-
       .addCase(assignTicket.fulfilled, (state, action) => {
         state.isLoading = false
         state.isSuccess = true
-        state.ticket = action.payload // Actualizam tichetul din pagina
+        state.ticket = action.payload
+      })
+      // --- Case Suspendare (NOU) ---
+      .addCase(suspendTicket.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.isSuccess = true
+        state.ticket = action.payload // Actualizam tichetul cu statusul 'suspended'
       })
   },
 })
-
-// ... codul existent ...
-
-// Obtine un singur tichet
-export const getTicket = createAsyncThunk(
-  'tickets/get',
-  async (ticketId, thunkAPI) => {
-    try {
-      const token = thunkAPI.getState().auth.user.token
-      return await ticketService.getTicket(ticketId, token)
-    } catch (error) {
-      const message =
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message || error.toString()
-      return thunkAPI.rejectWithValue(message)
-    }
-  }
-)
-
-// Inchide tichet
-export const closeTicket = createAsyncThunk(
-  'tickets/close',
-  async (ticketId, thunkAPI) => {
-    try {
-      const token = thunkAPI.getState().auth.user.token
-      return await ticketService.closeTicket(ticketId, token)
-    } catch (error) {
-      const message =
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message || error.toString()
-      return thunkAPI.rejectWithValue(message)
-    }
-  }
-)
 
 export const { reset } = ticketSlice.actions
 export default ticketSlice.reducer

@@ -30,29 +30,37 @@ const getTickets = asyncHandler(async (req, res) => {
 // @route   POST /api/tickets
 // @access  Private
 const createTicket = asyncHandler(async (req, res) => {
-  const { product, description, priority } = req.body;
+    const { product, description, priority } = req.body; // Asigura-te ca primesti si priority
 
-  if (!product || !description) {
-    res.status(400);
-    throw new Error('Te rog adauga produsul si descrierea');
-  }
+    if (!product || !description) {
+        res.status(400);
+        throw new Error('Te rog completeaza campurile produs si descriere');
+    }
 
-  const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id);
 
-  if (!user) {
-    res.status(401);
-    throw new Error('Utilizatorul nu a fost gasit');
-  }
+    // --- LOGICA SLA (Calculam Data Limita) ---
+    let deadline = new Date();
+    // Valorile trebuie sa fie EXACT ca in <option> din Frontend (NewTicket.jsx)
+    if (priority === 'Mare') {
+        deadline.setHours(deadline.getHours() + 24); // 24 ore
+    } else if (priority === 'Medie') {
+        deadline.setHours(deadline.getHours() + 48); // 48 ore
+    } else {
+        // Mica sau nespecificat
+        deadline.setHours(deadline.getHours() + 72); // 72 ore
+    }
 
-  const ticket = await Ticket.create({
-    product,
-    description,
-    priority: priority || 'Mica',
-    user: req.user.id,
-    status: 'new',
-  });
+    const ticket = await Ticket.create({
+        product,
+        description,
+        user: req.user.id,
+        status: 'new',
+        priority: priority || 'Mica', // Default Mica
+        deadline: deadline // Salvam deadline-ul calculat
+    });
 
-  res.status(201).json(ticket);
+    res.status(201).json(ticket);
 });
 
 // @desc    Preia un singur tichet
@@ -173,6 +181,29 @@ const assignTicket = asyncHandler(async (req, res) => {
   res.status(200).json(updatedTicket);
 });
 
+const suspendTicket = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    const ticket = await Ticket.findById(req.params.id);
+
+    if (!ticket) {
+        res.status(404);
+        throw new Error('Tichetul nu a fost găsit');
+    }
+
+    if (ticket.user.toString() !== req.user.id && user.role !== 'admin' && user.role !== 'agent') {
+        res.status(401);
+        throw new Error('Nu ești autorizat');
+    }
+
+    const updatedTicket = await Ticket.findByIdAndUpdate(
+        req.params.id, 
+        { status: 'suspended' }, 
+        { new: true }
+    );
+
+    res.status(200).json(updatedTicket);
+});
+
 // AICI ERA PROBLEMA: Exportam functii care nu erau definite mai sus
 module.exports = {
   getTickets,
@@ -180,5 +211,6 @@ module.exports = {
   getTicket,
   deleteTicket,
   updateTicket,
-  assignTicket
+  assignTicket,
+  suspendTicket
 };

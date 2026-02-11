@@ -1,11 +1,42 @@
 const asyncHandler = require('express-async-handler');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer'); // <--- Import Multer
+const path = require('path');     // <--- Import Path
 const User = require('../models/userModel');
 
-// @desc    Inregistrare utilizator nou
-// @route   POST /api/users
-// @access  Public
+// --- CONFIGURARE MULTER (Upload Poze) ---
+const storage = multer.diskStorage({
+  destination(req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename(req, file, cb) {
+    cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
+  },
+});
+
+function checkFileType(file, cb) {
+  const filetypes = /jpg|jpeg|png/;
+  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = filetypes.test(file.mimetype);
+
+  if (extname && mimetype) {
+    return cb(null, true);
+  } else {
+    cb('Doar imagini (jpg, jpeg, png)!');
+  }
+}
+
+const upload = multer({
+  storage,
+  fileFilter: function (req, file, cb) {
+    checkFileType(file, cb);
+  },
+});
+
+// --- CONTROLLERE ---
+
+// @desc    Inregistrare utilizator (Public - Self Register)
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, role, department } = req.body;
 
@@ -15,7 +46,6 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const userExists = await User.findOne({ email });
-
   if (userExists) {
     res.status(400);
     throw new Error('Utilizatorul exista deja');
@@ -28,7 +58,7 @@ const registerUser = asyncHandler(async (req, res) => {
     name,
     email,
     password: hashedPassword,
-    role: role || 'angajat',
+    role: role || 'angajat', 
     department: department || 'General'
   });
 
@@ -39,6 +69,7 @@ const registerUser = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role,
       department: user.department,
+      profileImage: user.profileImage, // <--- Returnam si poza
       token: generateToken(user._id),
     });
   } else {
@@ -47,9 +78,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Autentificare utilizator
-// @route   POST /api/users/login
-// @access  Public
+// @desc    Login
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
@@ -61,6 +90,7 @@ const loginUser = asyncHandler(async (req, res) => {
       email: user.email,
       role: user.role,
       department: user.department,
+      profileImage: user.profileImage, // <--- Returnam si poza
       token: generateToken(user._id),
     });
   } else {
@@ -69,45 +99,125 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Datele utilizatorului curent
-// @route   GET /api/users/me
-// @access  Private
+// @desc    Get Current User
 const getMe = asyncHandler(async (req, res) => {
   const user = {
     id: req.user._id,
     email: req.user.email,
     name: req.user.name,
     role: req.user.role,
-    department: req.user.department
+    department: req.user.department,
+    profileImage: req.user.profileImage // <--- Returnam si poza
   };
   res.status(200).json(user);
 });
 
-// @desc    Preia toti utilizatorii (Admin Only)
-// @route   GET /api/users/all
-// @access  Private (Admin)
+// @desc    Incarca poza profil
+// @route   POST /api/users/upload
+const uploadProfilePhoto = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+        // Salvam calea catre fisier (normalizam slash-urile pentru Windows)
+        user.profileImage = `/${req.file.path.replace(/\\/g, "/")}`;
+        const updatedUser = await user.save();
+
+        res.json({
+            _id: updatedUser._id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            role: updatedUser.role,
+            department: updatedUser.department,
+            profileImage: updatedUser.profileImage,
+            token: generateToken(updatedUser._id),
+        });
+    } else {
+        res.status(404);
+        throw new Error('Utilizatorul nu a fost gasit');
+    }
+});
+
+// @desc    Get All Users (Admin)
 const getAllUsers = asyncHandler(async (req, res) => {
     const users = await User.find({});
     res.status(200).json(users);
 });
 
-// --- FUNCTIE NOUA: STERGERE USER ---
-// @desc    Sterge un utilizator
-// @route   DELETE /api/users/:id
-// @access  Private (Admin)
+// @desc    Delete User (Admin)
 const deleteUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
-
     if (!user) {
         res.status(404);
         throw new Error('Utilizatorul nu a fost gasit');
     }
-
     await user.deleteOne();
     res.status(200).json({ id: req.params.id });
 });
 
-// Genereaza JWT
+// @desc    Create User (Admin Action)
+const createUser = asyncHandler(async (req, res) => {
+  const { name, email, password, role, department } = req.body;
+
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error('Toate câmpurile sunt obligatorii');
+  }
+
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error('Utilizatorul există deja');
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  const user = await User.create({
+    name,
+    email,
+    password: hashedPassword,
+    role,
+    department
+  });
+
+  if (user) {
+    res.status(201).json(user);
+  } else {
+    res.status(400);
+    throw new Error('Date invalide');
+  }
+});
+
+// @desc    Update User (Admin Action)
+const updateUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error('Utilizatorul nu a fost găsit');
+  }
+
+  user.name = req.body.name || user.name;
+  user.email = req.body.email || user.email;
+  user.role = req.body.role || user.role;
+  user.department = req.body.department || user.department;
+
+  if (req.body.password) {
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(req.body.password, salt);
+  }
+
+  const updatedUser = await user.save();
+
+  res.status(200).json({
+    _id: updatedUser._id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    role: updatedUser.role,
+    department: updatedUser.department
+  });
+});
+
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '30d',
@@ -118,6 +228,10 @@ module.exports = {
   registerUser,
   loginUser,
   getMe,
-  getAllUsers,
-  deleteUser // <--- Nu uita sa o exporti!
+  getAllUsers,  
+  deleteUser,
+  createUser,
+  updateUser,
+  upload,             // <--- Exportam Middleware Multer
+  uploadProfilePhoto  // <--- Exportam Functia Upload
 };

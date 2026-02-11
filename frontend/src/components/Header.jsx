@@ -1,4 +1,4 @@
-import { FaSignInAlt, FaSignOutAlt, FaUser, FaUserCircle } from 'react-icons/fa'
+import { FaSignInAlt, FaSignOutAlt, FaUser, FaUserCircle, FaList, FaChartBar } from 'react-icons/fa'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { logout, reset } from '../features/auth/authSlice'
@@ -14,6 +14,31 @@ function Header() {
     navigate('/')
   }
 
+  // Helper pentru a decide ce afisam: Poza sau Iconita
+  const getProfileImage = () => {
+      if (user && user.profileImage) {
+          const imgUrl = user.profileImage.startsWith('http') 
+            ? user.profileImage 
+            : `http://localhost:5000${user.profileImage}`;
+            
+          return (
+            <img 
+              src={imgUrl} 
+              alt="Avatar" 
+              style={{ 
+                width: '30px', 
+                height: '30px', 
+                borderRadius: '50%', 
+                objectFit: 'cover', 
+                marginRight: '5px',
+                border: '2px solid white' 
+              }} 
+            />
+          );
+      }
+      return <FaUserCircle style={{ marginRight: '5px', fontSize: '20px' }} />;
+  }
+
   return (
     <header className='header' style={{ display: 'flex', justifyContent: 'space-between', padding: '20px', borderBottom: '1px solid #e6e6e6', marginBottom: '60px', alignItems: 'center' }}>
       <div className='logo'>
@@ -22,11 +47,10 @@ function Header() {
         </Link>
       </div>
       
-      {/* Aici am adaugat listStyle: 'none' ca sa dispara punctele negre */}
       <ul style={{ display: 'flex', gap: '20px', alignItems: 'center', listStyle: 'none', margin: 0, padding: 0 }}>
         {user ? (
           <>
-            {/* Buton vizibil doar pentru ADMIN */}
+            {/* 1. Buton ADMIN (Vizibil doar pentru admini) */}
             {user.role === 'admin' && (
               <li>
                 <Link to='/admin' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none', fontWeight: 'bold' }}>
@@ -35,13 +59,29 @@ function Header() {
               </li>
             )}
 
-            {/* Link catre Profil (Numele Userului) */}
+            {/* 2. Buton DASHBOARD (Vizibil pentru toți userii logați) */}
             <li>
-                <Link to='/profile' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none' }}>
-                    <FaUserCircle /> {user.name}
+                <Link to='/dashboard' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none', fontWeight: 'bold' }}>
+                   <FaChartBar /> Dashboard
                 </Link>
             </li>
 
+            {/* 3. Buton LISTA COMPLETA (Istoric) */}
+            <li>
+                <Link to='/tickets' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none', fontWeight: 'bold' }}>
+                   <FaList /> Toate Tichetele
+                </Link>
+            </li>
+
+            {/* 4. Link PROFIL (Nume + Poza) */}
+            <li>
+                <Link to='/profile' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none' }}>
+                    {getProfileImage()}
+                    {user.name}
+                </Link>
+            </li>
+
+            {/* 5. Buton LOGOUT */}
             <li>
               <button className='btn' onClick={onLogout} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'none', border: '1px solid #ccc', padding: '5px 10px', borderRadius: '5px', fontSize: '14px' }}>
                 <FaSignOutAlt /> Logout
@@ -50,6 +90,7 @@ function Header() {
           </>
         ) : (
           <>
+            {/* Linkuri pentru vizitatori nelogați */}
             <li>
               <Link to='/login' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none' }}>
                 <FaSignInAlt /> Login
