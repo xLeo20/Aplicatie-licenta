@@ -1,116 +1,143 @@
 import { useState, useEffect } from 'react';
-import { FaClock, FaExclamationCircle, FaPause, FaCheckCircle } from 'react-icons/fa';
+import { FaClock, FaFireAlt, FaCheckCircle, FaPauseCircle } from 'react-icons/fa';
 
 const SLACountdown = ({ deadline, createdAt, status }) => {
-  const [timeLeft, setTimeLeft] = useState({});
-  const [progress, setProgress] = useState(0);
-  const [isOverdue, setIsOverdue] = useState(false);
+    // Calculăm durata totală
+    const totalDuration = new Date(deadline).getTime() - new Date(createdAt).getTime();
+    
+    const calculateTimeLeft = () => {
+        const difference = new Date(deadline) - new Date();
+        return difference > 0 ? difference : 0;
+    };
 
-  useEffect(() => {
-    // Daca tichetul e inchis sau suspendat, nu mai calculam in timp real
-    if (status === 'closed' || status === 'suspended' || !deadline) return;
+    const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
 
-    const timer = setInterval(() => {
-      const now = new Date().getTime();
-      const end = new Date(deadline).getTime();
-      const start = new Date(createdAt).getTime();
-      
-      const distance = end - now;
-      const totalDuration = end - start;
+    useEffect(() => {
+        if (status === 'closed' || status === 'suspended') return;
 
-      // Calculam progresul (Cat % din timp a trecut)
-      // Daca totalDuration e 0 sau invalid, evitam impartirea la 0
-      const elapsedTime = now - start;
-      let percentage = (elapsedTime / totalDuration) * 100;
-      
-      if (percentage > 100) percentage = 100;
-      if (percentage < 0) percentage = 0;
-      
-      setProgress(percentage);
+        const timer = setInterval(() => {
+            setTimeLeft(calculateTimeLeft());
+        }, 1000);
 
-      if (distance < 0) {
-        setIsOverdue(true);
-        // Putem opri timerul daca a expirat, sau il lasam sa arate cat a trecut peste
-        // clearInterval(timer); 
-      } else {
-        setIsOverdue(false);
-      }
+        return () => clearInterval(timer);
+    }, [deadline, status]);
 
-      // Calculam zile, ore, minute, secunde
-      // Folosim Math.abs pentru a arata timpul pozitiv chiar daca a expirat (cat timp a trecut peste)
-      const absDistance = Math.abs(distance);
-      
-      setTimeLeft({
-        days: Math.floor(absDistance / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((absDistance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-        minutes: Math.floor((absDistance % (1000 * 60 * 60)) / (1000 * 60)),
-        seconds: Math.floor((absDistance % (1000 * 60)) / 1000),
-      });
+    // Formatare timp (HH:MM:SS)
+    const formatTime = (ms) => {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${hours}h ${minutes}m ${seconds}s`;
+    };
 
-    }, 1000);
+    // Calcul procentaj bară
+    const percentLeft = Math.max(0, Math.min(100, (timeLeft / totalDuration) * 100));
+    
+    // Culori dinamice (Verde -> Galben -> Roșu)
+    let barColor = 'bg-emerald-500'; 
+    let textColor = 'text-emerald-400';
+    let shadowClass = 'shadow-[0_0_20px_rgba(16,185,129,0.5)]';
 
-    return () => clearInterval(timer);
-  }, [deadline, createdAt, status]);
+    if (percentLeft < 50) {
+        barColor = 'bg-amber-500';
+        textColor = 'text-amber-400';
+        shadowClass = 'shadow-[0_0_20px_rgba(245,158,11,0.5)]';
+    }
+    if (percentLeft < 20) {
+        barColor = 'bg-red-600';
+        textColor = 'text-red-500';
+        shadowClass = 'shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse';
+    }
 
-  // --- RENDERIZARE CONDITIONATA ---
+    // Cazuri speciale: Închis sau Suspendat
+    if (status === 'closed') {
+        return (
+            <div className="w-full bg-slate-900/50 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <FaCheckCircle className="text-emerald-500 text-xl" />
+                    <div>
+                        <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Status SLA</p>
+                        <p className="text-white font-bold">Tichet Finalizat</p>
+                    </div>
+                </div>
+                <div className="h-2 w-32 bg-emerald-500/20 rounded-full overflow-hidden">
+                    <div className="h-full w-full bg-emerald-500"></div>
+                </div>
+            </div>
+        );
+    }
 
-  if (status === 'closed') {
+    if (status === 'suspended') {
+        return (
+            <div className="w-full bg-slate-900/50 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <FaPauseCircle className="text-amber-500 text-xl" />
+                    <div>
+                        <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Status SLA</p>
+                        <p className="text-white font-bold">Cronometru Înghețat</p>
+                    </div>
+                </div>
+                <div className="h-2 w-32 bg-amber-500/20 rounded-full overflow-hidden">
+                    <div className="h-full w-full bg-amber-500 dashed-bar"></div>
+                </div>
+            </div>
+        );
+    }
+
     return (
-      <div className="sla-badge" style={{ background: '#d4edda', color: '#155724', border: '1px solid #c3e6cb' }}>
-        <FaCheckCircle /> Rezolvat la timp
-      </div>
-    );
-  }
+        <div className="w-full relative overflow-hidden">
+            {/* Injectăm animația CSS local */}
+            <style>{`
+                @keyframes move-stripes {
+                    0% { background-position: 1rem 0; }
+                    100% { background-position: 0 0; }
+                }
+                .sla-bar-animated {
+                    background-image: linear-gradient(
+                        45deg, 
+                        rgba(255, 255, 255, 0.15) 25%, 
+                        transparent 25%, 
+                        transparent 50%, 
+                        rgba(255, 255, 255, 0.15) 50%, 
+                        rgba(255, 255, 255, 0.15) 75%, 
+                        transparent 75%, 
+                        transparent
+                    );
+                    background-size: 1rem 1rem;
+                    animation: move-stripes 1s linear infinite;
+                }
+            `}</style>
 
-  if (status === 'suspended') {
-    return (
-      <div className="sla-badge" style={{ background: '#fff3cd', color: '#856404', border: '1px solid #ffeeba' }}>
-        <FaPause /> SLA Înghețat (Suspendat)
-      </div>
-    );
-  }
+            <div className="flex justify-between items-end mb-3">
+                <div className="flex items-center gap-2">
+                    <FaFireAlt className={`${textColor} ${percentLeft < 20 ? 'animate-bounce' : ''}`} />
+                    <span className="text-white font-black uppercase tracking-widest text-xs opacity-80">
+                        Timp Rămas SLA
+                    </span>
+                </div>
+                <span className={`text-3xl font-black font-mono text-white drop-shadow-md tracking-tight`}>
+                    {timeLeft > 0 ? formatTime(timeLeft) : "00:00:00"}
+                </span>
+            </div>
 
-  // Culori dinamice in functie de progres
-  let progressColor = '#28a745'; // Verde
-  if (progress > 50) progressColor = '#ffc107'; // Galben
-  if (progress > 85) progressColor = '#dc3545'; // Rosu
-
-  return (
-    <div className="sla-container" style={{ width: '100%', maxWidth: '400px' }}>
-      
-      {/* TEXTUL CU TIMPUL */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold', color: isOverdue ? '#dc3545' : '#333' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            {isOverdue ? <FaExclamationCircle /> : <FaClock />}
-            {isOverdue ? 'SLA DEPĂȘIT CU:' : 'Timp Rămas:'}
+            {/* CONTAINER BARA */}
+            <div className="w-full h-6 bg-slate-950 rounded-full overflow-hidden border border-white/10 relative shadow-inner">
+                {/* BARA PROPRIU-ZISĂ CU ANIMAȚIE */}
+                <div 
+                    className={`h-full rounded-full transition-all duration-1000 ease-linear ${barColor} ${shadowClass} sla-bar-animated`}
+                    style={{ width: `${percentLeft}%` }}
+                ></div>
+            </div>
+            
+            <div className="flex justify-between mt-2 px-1">
+                <span className="text-[10px] text-white/30 font-bold uppercase">START</span>
+                <span className="text-[10px] text-white/30 font-bold uppercase">
+                    LIMITĂ: {new Date(deadline).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </span>
+            </div>
         </div>
-        <div style={{ fontFamily: 'monospace', fontSize: '14px' }}>
-            {timeLeft.days > 0 && `${timeLeft.days}z `}
-            {timeLeft.hours !== undefined ? String(timeLeft.hours).padStart(2, '0') : '00'}h : 
-            {timeLeft.minutes !== undefined ? String(timeLeft.minutes).padStart(2, '0') : '00'}m : 
-            {timeLeft.seconds !== undefined ? String(timeLeft.seconds).padStart(2, '0') : '00'}s
-        </div>
-      </div>
-
-      {/* BARA DE PROGRES */}
-      <div style={{ height: '8px', width: '100%', backgroundColor: '#e9ecef', borderRadius: '4px', overflow: 'hidden' }}>
-        <div 
-            style={{ 
-                height: '100%', 
-                width: `${progress}%`, 
-                backgroundColor: isOverdue ? '#dc3545' : progressColor,
-                transition: 'width 1s linear, background-color 0.5s ease' // Animatie lina
-            }} 
-        ></div>
-      </div>
-      
-      {/* Data Deadline-ului mica sub bara */}
-      <div style={{ fontSize: '10px', color: '#888', marginTop: '3px', textAlign: 'right' }}>
-        Limită: {new Date(deadline).toLocaleString('ro-RO')}
-      </div>
-
-    </div>
-  );
+    );
 };
 
 export default SLACountdown;

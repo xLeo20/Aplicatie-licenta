@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { getTickets, reset } from '../features/tickets/ticketSlice'
 import Spinner from '../components/Spinner'
-import { FaTicketAlt, FaExclamationCircle, FaCheckCircle, FaPlus, FaHistory } from 'react-icons/fa'
+// AM CORECTAT AICI: FaChartPie in loc de FaPieChart
+import { FaTicketAlt, FaExclamationCircle, FaCheckCircle, FaPlus, FaHistory, FaChartBar, FaChartPie } from 'react-icons/fa'
 import { Link } from 'react-router-dom'
 import { Pie, Bar } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js'
@@ -20,13 +21,13 @@ function Dashboard() {
 
   if (isLoading) return <Spinner />
 
-  // --- LOGICA CALCUL STATISTICI ---
+  // --- LOGICA STATISTICI ---
   const totalTickets = tickets.length
   const activeTickets = tickets.filter(t => t.status === 'new' || t.status === 'open').length
   const resolvedTickets = tickets.filter(t => t.status === 'closed').length
   const urgentTickets = tickets.filter(t => t.priority === 'Mare' && t.status !== 'closed')
 
-  // Date Grafic Pie (Status)
+  // Grafic Status
   const pieData = {
     labels: ['Noi', 'În Lucru', 'Suspendate', 'Închise'],
     datasets: [{
@@ -36,131 +37,129 @@ function Dashboard() {
         tickets.filter(t => t.status === 'suspended').length,
         tickets.filter(t => t.status === 'closed').length
       ],
-      backgroundColor: ['#3b82f6', '#0ea5e9', '#f59e0b', '#10b981'],
+      backgroundColor: ['#3b82f6', '#6366f1', '#f59e0b', '#10b981'],
       borderWidth: 0,
     }]
   }
 
-  // Date Grafic Bar (Prioritate)
+  // Grafic Prioritate
   const barData = {
     labels: ['Mică', 'Medie', 'Mare'],
     datasets: [{
-      label: 'Număr Tichete',
+      label: 'Tichete',
       data: [
         tickets.filter(t => t.priority === 'Mica').length,
         tickets.filter(t => t.priority === 'Medie').length,
         tickets.filter(t => t.priority === 'Mare').length
       ],
-      backgroundColor: '#6366f1',
-      borderRadius: 8,
+      backgroundColor: '#3b82f6',
+      borderRadius: 8
     }]
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="w-full flex flex-col items-center px-4 py-8 animate-in fade-in duration-700">
       
       {/* --- HEADER DASHBOARD --- */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-        <div>
-          <h1 className="text-4xl font-extrabold text-white drop-shadow-md">Dashboard Analiză</h1>
-          <p className="text-blue-100 opacity-90">Privire de ansamblu asupra performanței sistemului</p>
+      <div className="w-full max-w-6xl flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+        <div className="text-center md:text-left">
+          <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic drop-shadow-lg">Dashboard Analiză</h1>
+          <p className="text-blue-300/60 font-medium">Monitorizare în timp real a incidentelor IT</p>
         </div>
-        <Link to="/new-ticket" className="flex items-center gap-2 bg-white text-indigo-600 hover:bg-blue-50 font-bold py-3 px-6 rounded-2xl shadow-lg transition-all transform hover:-translate-y-1">
+        <Link to="/new-ticket" className="bg-blue-600 hover:bg-blue-500 text-white font-black py-3 px-8 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 tracking-widest text-sm uppercase">
           <FaPlus /> Crează Tichet
         </Link>
       </div>
 
-      {/* --- KPI CARDS (Statistici Sus) --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+      {/* --- KPI CARDS --- */}
+      <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         
-        {/* Card Total */}
-        <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/20 flex items-center gap-5">
-          <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl">
+        {/* Total */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] flex items-center gap-5 shadow-2xl ring-1 ring-white/5 group hover:bg-white/10 transition-all">
+          <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-6 transition-transform">
             <FaTicketAlt />
           </div>
           <div>
-            <p className="text-gray-500 font-medium uppercase text-xs tracking-wider">Total Tichete</p>
-            <h3 className="text-3xl font-black text-gray-800">{totalTickets}</h3>
+            <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Total Tichete</p>
+            <h3 className="text-4xl font-black text-white">{totalTickets}</h3>
           </div>
         </div>
 
-        {/* Card Active */}
-        <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/20 flex items-center gap-5">
-          <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl">
+        {/* Active */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] flex items-center gap-5 shadow-2xl ring-1 ring-white/5 group hover:bg-white/10 transition-all">
+          <div className="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-6 transition-transform">
             <FaExclamationCircle />
           </div>
           <div>
-            <p className="text-gray-500 font-medium uppercase text-xs tracking-wider">Active (Noi + Lucru)</p>
-            <h3 className="text-3xl font-black text-gray-800">{activeTickets}</h3>
+            <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Active (Noi + Lucru)</p>
+            <h3 className="text-4xl font-black text-white">{activeTickets}</h3>
           </div>
         </div>
 
-        {/* Card Rezolvate */}
-        <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/20 flex items-center gap-5">
-          <div className="w-14 h-14 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center text-2xl">
+        {/* Rezolvate */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] flex items-center gap-5 shadow-2xl ring-1 ring-white/5 group hover:bg-white/10 transition-all">
+          <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-6 transition-transform">
             <FaCheckCircle />
           </div>
           <div>
-            <p className="text-gray-500 font-medium uppercase text-xs tracking-wider">Rezolvate</p>
-            <h3 className="text-3xl font-black text-gray-800">{resolvedTickets}</h3>
+            <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Rezolvate</p>
+            <h3 className="text-4xl font-black text-white">{resolvedTickets}</h3>
           </div>
         </div>
       </div>
 
-      {/* --- GRAFICE SECTION --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+      {/* --- GRAFICE --- */}
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
         
-        {/* Distribuție Status */}
-        <div className="bg-white p-8 rounded-3xl shadow-xl">
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <div className="w-2 h-6 bg-blue-500 rounded-full"></div> Status Tichete
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl">
+          <h3 className="text-gray-800 text-xl font-black uppercase italic tracking-tight mb-6 flex items-center gap-2">
+            <FaChartPie className="text-blue-600" /> Status Tichete
           </h3>
           <div className="h-[300px] flex justify-center">
-            <Pie data={pieData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
+            <Pie data={pieData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold' } } } } }} />
           </div>
         </div>
 
-        {/* Distribuție Prioritate */}
-        <div className="bg-white p-8 rounded-3xl shadow-xl">
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <div className="w-2 h-6 bg-indigo-500 rounded-full"></div> Prioritate
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl">
+          <h3 className="text-gray-800 text-xl font-black uppercase italic tracking-tight mb-6 flex items-center gap-2">
+            <FaChartBar className="text-indigo-600" /> Distribuție Prioritate
           </h3>
           <div className="h-[300px]">
-            <Bar data={barData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } } }} />
+            <Bar data={barData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } } } }} />
           </div>
         </div>
       </div>
 
-      {/* --- URGENTE ACTIVE --- */}
-      <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl p-8 mb-10">
-        <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-          <FaExclamationCircle className="text-red-400 animate-pulse" /> Urgențe Active (Prioritate Mare)
+      {/* --- URGENȚE --- */}
+      <div className="w-full max-w-6xl bg-red-500/5 backdrop-blur-xl border border-red-500/20 rounded-[2.5rem] p-8 mb-10">
+        <h3 className="text-2xl font-black text-white mb-6 flex items-center gap-3 uppercase italic">
+          <FaExclamationCircle className="text-red-500 animate-pulse" /> Urgențe Active (Prioritate Mare)
         </h3>
         
         {urgentTickets.length > 0 ? (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {urgentTickets.map(ticket => (
-              <div key={ticket._id} className="bg-white/90 p-4 rounded-2xl flex justify-between items-center hover:bg-white transition-colors">
-                <div>
-                  <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md mr-3">URGENT</span>
-                  <span className="font-semibold text-gray-800">{ticket.product}</span>
+              <div key={ticket._id} className="bg-white/90 p-5 rounded-2xl flex justify-between items-center hover:bg-white transition-all transform hover:scale-[1.02] shadow-lg">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-red-600 bg-red-100 px-2 py-0.5 rounded-md w-fit mb-1">URGENT</span>
+                  <span className="font-bold text-gray-800 text-lg">{ticket.product}</span>
                 </div>
-                <Link to={`/ticket/${ticket._id}`} className="text-indigo-600 font-bold text-sm hover:underline">Vezi Detalii</Link>
+                <Link to={`/ticket/${ticket._id}`} className="bg-slate-900 text-white px-5 py-2 rounded-xl text-xs font-black hover:bg-blue-600 transition-colors">DETALII</Link>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-blue-100 text-center py-4 italic">Nu există urgențe active. Totul este sub control! ✨</p>
+          <div className="text-center py-8 bg-white/5 rounded-3xl border border-white/5">
+             <p className="text-blue-100/60 text-lg italic">Nu există urgențe active. Totul este sub control! ✨</p>
+          </div>
         )}
       </div>
 
-      {/* --- BUTON ISTORIC JOS --- */}
-      <div className="flex justify-center">
-        <Link to="/tickets" className="group flex items-center gap-3 bg-gray-900 text-white font-bold py-4 px-10 rounded-2xl shadow-2xl hover:bg-black transition-all transform hover:scale-105">
-          <FaHistory className="group-hover:rotate-[-20deg] transition-transform" />
-          Vezi Tot Istoricul Tichetelor
-        </Link>
-      </div>
+      {/* --- ISTORIC --- */}
+      <Link to="/tickets" className="group flex items-center gap-3 bg-slate-900 text-white font-black py-5 px-12 rounded-2xl shadow-2xl hover:bg-black transition-all transform hover:scale-105 active:scale-95 uppercase tracking-widest text-sm">
+        <FaHistory className="group-hover:rotate-[-20deg] transition-transform" />
+        Vezi Tot Istoricul Tichetelor
+      </Link>
 
     </div>
   )

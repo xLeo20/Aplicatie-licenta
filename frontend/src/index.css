@@ -7,93 +7,79 @@
 @import "tailwindcss/utilities";
 /* 3. STILURI GLOBALE DE BAZĂ */
 :root {
-  --primary-color: #4f46e5; /* Indigo-600 din Tailwind */
+  --primary-color: #3b82f6;
+  --bg-dark: #0f172a; /* Slate 900 */
+  --bg-medium: #1e293b; /* Slate 800 */
 }
 
 body {
   font-family: 'Poppins', sans-serif;
   margin: 0;
   padding: 0;
-  /* Fundal Gradient Modern (similar cu ce aveai, dar mai soft) */
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
-  color: #1f2937; /* Gray-800 */
+  /* Fundal specific Tech: Bleumarin închis spre albastru profesional */
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #020617 100%);
+  color: #f8fafc;
   overflow-x: hidden;
+  position: relative;
 }
 
-/* 4. ANIMATIA DE PARTICULE (Dacă vrei să o păstrezi pe fundal) */
-.circles {
+/* --- ANIMATIA DE "CONEXIUNI REȚEA" (În loc de pătrate) --- */
+.tech-bg {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  z-index: -1;
   overflow: hidden;
-  z-index: 0; /* În spatele conținutului */
+}
+
+/* Cercuri pulsante care simulează noduri de rețea */
+.node {
+  position: absolute;
+  background: rgba(59, 130, 246, 0.2); /* Albastru transparent */
+  border-radius: 50%;
+  animation: pulseNode 8s infinite ease-in-out;
   pointer-events: none;
 }
 
-.circles li {
-  position: absolute;
-  display: block;
-  list-style: none;
-  width: 20px;
-  height: 20px;
-  background: rgba(255, 255, 255, 0.2);
-  animation: animate 25s linear infinite;
-  bottom: -150px;
+.node:nth-child(1) { width: 300px; height: 300px; top: -100px; right: -50px; animation-delay: 0s; }
+.node:nth-child(2) { width: 200px; height: 200px; bottom: 10%; left: -50px; animation-delay: 2s; }
+.node:nth-child(3) { width: 150px; height: 150px; top: 40%; left: 30%; animation-delay: 4s; opacity: 0.1; }
+/* Adauga/Modifica asta in index.css sub .node daca vrei mai multe puncte */
+.node:nth-child(4) { 
+  width: 400px; 
+  height: 400px; 
+  bottom: -200px; 
+  right: 20%; 
+  animation-delay: 1s; 
+  opacity: 0.15; 
 }
 
-.circles li:nth-child(1){ left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
-.circles li:nth-child(2){ left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; }
-.circles li:nth-child(3){ left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
-.circles li:nth-child(4){ left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; }
-.circles li:nth-child(5){ left: 65%; width: 20px; height: 20px; animation-delay: 0s; }
-.circles li:nth-child(6){ left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
-.circles li:nth-child(7){ left: 35%; width: 150px; height: 150px; animation-delay: 7s; }
-.circles li:nth-child(8){ left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s; }
-.circles li:nth-child(9){ left: 20%; width: 15px; height: 15px; animation-delay: 2s; animation-duration: 35s; }
-.circles li:nth-child(10){ left: 85%; width: 150px; height: 150px; animation-delay: 0s; animation-duration: 11s; }
 
-@keyframes animate {
-  0%{ transform: translateY(0) rotate(0deg); opacity: 1; border-radius: 0; }
-  100%{ transform: translateY(-1000px) rotate(720deg); opacity: 0; border-radius: 50%; }
+@keyframes pulseNode {
+  0%, 100% { transform: scale(1); opacity: 0.2; }
+  50% { transform: scale(1.2); opacity: 0.4; }
 }
 
-/* 5. OVERRIDES PENTRU COMPONENTELE EXISTENTE (CSS Legacy) 
-   Acestea asigură că paginile vechi (care nu sunt încă convertite la Tailwind) 
-   arată acceptabil până le refacem.
-*/
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-  position: relative;
-  z-index: 10;
+/* Liniile subțiri de rețea (Grid discret animat) */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+  z-index: -1;
+  animation: moveGrid 60s linear infinite;
 }
 
-.btn {
-  /* Stiluri de bază pentru butoanele care nu au clase Tailwind încă */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-
-/* Ascundem scrollbar-ul urât dar păstrăm funcționalitatea */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent; 
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3); 
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5); 
+@keyframes moveGrid {
+  from { background-position: 0 0; }
+  to { background-position: 500px 500px; }
 }

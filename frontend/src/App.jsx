@@ -49,30 +49,29 @@ function AnimatedRoutes() {
 function App() {
   return (
     <>
-      {/* --- ANIMATIA DE FUNDAL (Patrate care plutesc) --- */}
-      <div className="area" >
-            <ul className="circles">
-                    <li></li>
-                    <li></li>
-                    <li></li>
-                    <li></li>
-                    <li></li>
-                    <li></li>
-                    <li></li>
-                    <li></li>
-                    <li></li>
-                    <li></li>
-            </ul>
+      {/* NODURILE DE FUNDAL */}
+      <div className="tech-bg">
+        <div className="node"></div>
+        <div className="node"></div>
+        <div className="node"></div>
+        <div className="node"></div>
       </div>
-      {/* ----------------------------------------------- */}
 
       <Router>
-        <div className='container'>
+        {/* 'w-full' - ocupă toată lățimea
+            'flex flex-col items-center' - pune tot ce e în interior fix pe centru
+        */}
+        <div className='w-full min-h-screen flex flex-col items-center'>
+          {/* Header-ul va fi și el centrat acum */}
           <Header />
-          <AnimatedRoutes />
+          
+          {/* AnimatedRoutes va conține paginile, care la rândul lor sunt centrate */}
+          <main className='w-full flex justify-center'>
+            <AnimatedRoutes />
+          </main>
         </div>
       </Router>
-      <ToastContainer />
+      <ToastContainer theme="dark" />
     </>
   )
 }
