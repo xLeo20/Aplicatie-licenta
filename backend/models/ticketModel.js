@@ -1,47 +1,49 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 
-const ticketSchema = mongoose.Schema(
-  {
+const ticketSchema = mongoose.Schema({
     user: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: 'User',
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: 'User'
     },
+    // --- ID SCURT ---
+    ticketId: {
+        type: Number,
+        unique: true, 
+        sparse: true
+    },
+    // ----------------
     product: {
-      type: String,
-      required: [true, 'Please select a product'],
-      enum: ['iPhone', 'Macbook', 'iMac', 'iPad', 'IT', 'HR', 'Financiar'], // Asigura-te ca ai si departamentele noi aici
+        type: String,
+        required: [true, 'Selecteaza un produs sau departament'],
+        // AM SCOS ENUM-UL CA SA POTI PUNE ORICE (IT, Financiar, etc.)
     },
     description: {
-      type: String,
-      required: [true, 'Please enter a description of the issue'],
-    },
-    priority: {
-      type: String,
-      enum: ['Mica', 'Medie', 'Mare'],
-      default: 'Mica',
+        type: String,
+        required: [true, 'Adauga o descriere a problemei']
     },
     status: {
-      type: String,
-      required: true,
-      enum: ['new', 'open', 'closed', 'suspended'],
-      default: 'new',
+        type: String, 
+        required: true,
+        enum: ['new', 'open', 'closed', 'suspended'],
+        default: 'new'
     },
-    // --- CAMP NOU PENTRU ASIGNARE ---
+    priority: {
+        type: String,
+        enum: ['Mica', 'Medie', 'Mare'],
+        default: 'Mica'
+    },
     deadline: {
         type: Date,
         required: false
     },
-
     assignedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', // Face legatura cu colectia de Useri
-      required: false // Nu e obligatoriu la creare (cand e 'new')
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false
     }
-  },
-  {
-    timestamps: true,
-  }
-)
+}, {
+    timestamps: true
+});
 
-module.exports = mongoose.model('Ticket', ticketSchema)
+module.exports = mongoose.model('Ticket', ticketSchema);

@@ -12,9 +12,10 @@ import Ticket from './pages/Ticket'
 import AdminUsers from './pages/AdminUsers'
 import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
+import Dashboard from './pages/Dashboard'
 import { AnimatePresence } from 'framer-motion'
 import PageAnimation from './components/PageAnimation'
-import Dashboard from './pages/Dashboard'
+import TicketCalendar from './pages/TicketCalendar'
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -27,7 +28,7 @@ function AnimatedRoutes() {
         <Route path='/login' element={<PageAnimation><Login /></PageAnimation>} />
         <Route path='/register' element={<PageAnimation><Register /></PageAnimation>} />
         
-        {/* Rute Protejate */}
+        {/* Rute Protejate (Necesita Login) */}
         <Route element={<PrivateRoute />}>
             <Route path='/dashboard' element={<PageAnimation><Dashboard /></PageAnimation>} />
             <Route path='/new-ticket' element={<PageAnimation><NewTicket /></PageAnimation>} />
@@ -35,8 +36,10 @@ function AnimatedRoutes() {
             <Route path='/ticket/:ticketId' element={<PageAnimation><Ticket /></PageAnimation>} />
             <Route path='/profile' element={<PageAnimation><Profile /></PageAnimation>} />
             <Route path='/admin' element={<PageAnimation><AdminUsers /></PageAnimation>} />
+            <Route path='/calendar' element={<PageAnimation><TicketCalendar /></PageAnimation>} />
         </Route>
         
+        {/* Ruta 404 */}
         <Route path='*' element={<PageAnimation><NotFound /></PageAnimation>} />
       </Routes>
     </AnimatePresence>

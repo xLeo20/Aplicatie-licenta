@@ -1,4 +1,4 @@
-import { FaSignInAlt, FaSignOutAlt, FaUser, FaUserCircle, FaList, FaChartBar } from 'react-icons/fa'
+import { FaSignInAlt, FaSignOutAlt, FaUser, FaUserCircle, FaList, FaChartBar, FaCalendarAlt } from 'react-icons/fa' // <--- Am adaugat FaColumns aici
 import { Link, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { logout, reset } from '../features/auth/authSlice'
@@ -59,21 +59,28 @@ function Header() {
               </li>
             )}
 
-            {/* 2. Buton DASHBOARD (Vizibil pentru toți userii logați) */}
+            {/* 2. Buton DASHBOARD */}
             <li>
                 <Link to='/dashboard' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none', fontWeight: 'bold' }}>
                    <FaChartBar /> Dashboard
                 </Link>
             </li>
 
-            {/* 3. Buton LISTA COMPLETA (Istoric) */}
+            {/* 3. Buton CALENDAR (In loc de Kanban) */}
+            <li>
+                <Link to='/calendar' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none', fontWeight: 'bold' }}>
+                   <FaCalendarAlt /> Calendar
+                </Link>
+            </li>
+
+            {/* 4. Buton LISTA COMPLETA */}
             <li>
                 <Link to='/tickets' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none', fontWeight: 'bold' }}>
                    <FaList /> Toate Tichetele
                 </Link>
             </li>
 
-            {/* 4. Link PROFIL (Nume + Poza) */}
+            {/* 5. Link PROFIL */}
             <li>
                 <Link to='/profile' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none' }}>
                     {getProfileImage()}
@@ -81,7 +88,7 @@ function Header() {
                 </Link>
             </li>
 
-            {/* 5. Buton LOGOUT */}
+            {/* 6. Buton LOGOUT */}
             <li>
               <button className='btn' onClick={onLogout} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', background: 'none', border: '1px solid #ccc', padding: '5px 10px', borderRadius: '5px', fontSize: '14px' }}>
                 <FaSignOutAlt /> Logout
@@ -90,7 +97,6 @@ function Header() {
           </>
         ) : (
           <>
-            {/* Linkuri pentru vizitatori nelogați */}
             <li>
               <Link to='/login' style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#000', textDecoration: 'none' }}>
                 <FaSignInAlt /> Login

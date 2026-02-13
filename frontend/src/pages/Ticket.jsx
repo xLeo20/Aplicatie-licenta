@@ -4,10 +4,11 @@ import { useSelector, useDispatch } from 'react-redux'
 import { getTicket, closeTicket, suspendTicket, assignTicket } from '../features/tickets/ticketSlice'
 import { getNotes, createNote } from '../features/notes/noteSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaArrowCircleLeft, FaPlus, FaExclamationTriangle, FaClock, FaPause } from 'react-icons/fa' 
+import { FaArrowCircleLeft, FaPlus, FaExclamationTriangle, FaPause } from 'react-icons/fa' 
 import { Link } from 'react-router-dom'
 import Spinner from '../components/Spinner'
 import NoteItem from '../components/NoteItem'
+import SLACountdown from '../components/SLACountdown' // <--- IMPORT NOU
 
 function Ticket() {
   const [modalIsOpen, setModalIsOpen] = useState(false)
@@ -24,23 +25,10 @@ function Ticket() {
   const dispatch = useDispatch()
   const { ticketId } = useParams()
 
-  // SLA Logic
-  const deadline = ticket.deadline ? new Date(ticket.deadline) : null;
-  // Daca tichetul e suspendat sau inchis, nu mai calculam SLA ca overdue
-  const isOverdue = deadline && deadline < new Date() && ticket.status !== 'closed' && ticket.status !== 'suspended';
-  
-  const calculateTimeLeft = () => {
-      if(!deadline) return '';
-      const diff = deadline - new Date();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      return `${hours} ore rămase`;
-  }
-
   useEffect(() => {
     if (isError) { toast.error(message) }
     dispatch(getTicket(ticketId))
     dispatch(getNotes(ticketId))
-    // eslint-disable-next-line
   }, [isError, message, ticketId])
 
   const onTicketCloseClick = () => { setConfirmationOpen(true) }
@@ -52,7 +40,6 @@ function Ticket() {
     navigate('/tickets')
   }
 
-  // --- FUNCTIA DE SUSPENDARE ---
   const onTicketSuspend = () => {
       if(window.confirm('Vrei să suspenderzi acest tichet temporar?')) {
           dispatch(suspendTicket(ticketId))
@@ -77,12 +64,11 @@ function Ticket() {
   if (isLoading || notesIsLoading) return <Spinner />
   if (isError) return <h3>Ceva nu a mers bine...</h3>
 
-  // Helper pentru culoarea statusului
   const getStatusColor = (status) => {
       switch(status) {
           case 'new': return 'green';
           case 'open': return 'steelblue';
-          case 'suspended': return 'orange'; // Culoare pentru suspendat
+          case 'suspended': return 'orange';
           case 'closed': return 'red';
           default: return 'gray';
       }
@@ -98,6 +84,10 @@ function Ticket() {
     }
   }
 
+  const displayId = ticket?.ticketId 
+      ? `#${ticket.ticketId}` 
+      : (ticket?._id ? `#${ticket._id.substring(ticket._id.length - 4)}` : '');
+
   return (
     <div className='ticket-page' style={{ position: 'relative' }}>
       
@@ -106,7 +96,7 @@ function Ticket() {
             <FaArrowCircleLeft /> Înapoi
         </Link>
         <h2 style={{margin: 0}}>
-          Tichet ID: {ticket._id}
+          Tichet {displayId}
           <span className={`status status-${ticket.status}`} style={{ 
             backgroundColor: getStatusColor(ticket.status), 
             color: '#fff', 
@@ -117,33 +107,23 @@ function Ticket() {
         </h2>
       </header>
 
-      {/* --- BANNER SLA --- */}
-      {/* SLA se afiseaza doar daca NU e inchis si NU e suspendat */}
-      {ticket.status !== 'closed' && ticket.status !== 'suspended' && deadline && (
+      {/* --- BANNER SLA PROFI (REAL TIME) --- */}
+      {ticket.status !== 'closed' && (
         <div style={{
-            backgroundColor: isOverdue ? '#f8d7da' : '#d4edda',
-            color: isOverdue ? '#721c24' : '#155724',
-            padding: '10px', borderRadius: '8px', marginBottom: '20px',
-            border: `1px solid ${isOverdue ? '#f5c6cb' : '#c3e6cb'}`,
-            display: 'flex', alignItems: 'center', gap: '10px'
+            backgroundColor: '#f8f9fa',
+            padding: '15px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            border: '1px solid #e9ecef',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
         }}>
-            {isOverdue ? <FaExclamationTriangle size={20}/> : <FaClock size={20}/>}
-            <div>
-                <strong>Status SLA: </strong> 
-                {isOverdue 
-                    ? `ATENȚIE! Depășit termenul (${new Date(deadline).toLocaleString('ro-RO')}).` 
-                    : `În grafic. Termen: ${new Date(deadline).toLocaleString('ro-RO')} (${calculateTimeLeft()}).`
-                }
-            </div>
+            {/* Folosim componenta noua aici */}
+            <SLACountdown 
+                deadline={ticket.deadline} 
+                createdAt={ticket.createdAt} 
+                status={ticket.status} 
+            />
         </div>
-      )}
-      
-      {/* Mesaj special daca e suspendat */}
-      {ticket.status === 'suspended' && (
-          <div style={{ backgroundColor: '#fff3cd', color: '#856404', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #ffeeba', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <FaPause />
-              <strong>Acest tichet este momentan SUSPENDAT. Timpul SLA este înghețat.</strong>
-          </div>
       )}
 
       <div className='ticket-desc' style={{ backgroundColor: '#f4f4f4', padding: '20px', borderRadius: '10px', marginBottom: '20px' }}>
@@ -164,24 +144,19 @@ function Ticket() {
         </div>
       </div>
 
-      {/* Butoane Actiune */}
       <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
-        
-        {/* Buton Preia */}
         {user && user.role !== 'angajat' && ticket.status === 'new' && (
             <button onClick={onTicketAssign} className='btn' style={{background: '#004085', color: '#fff', flex: 1}}>
             Preia Tichetul
             </button>
         )}
 
-        {/* Buton Nota */}
         {ticket.status !== 'closed' && (
             <button onClick={() => setModalIsOpen(!modalIsOpen)} className='btn' style={{background: '#000', color: '#fff', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'}}>
                 <FaPlus /> Adaugă Notă
             </button>
         )}
 
-        {/* --- BUTON SUSPENDARE (Apare daca nu e inchis si nu e deja suspendat) --- */}
         {ticket.status !== 'closed' && ticket.status !== 'suspended' && (
              <button onClick={onTicketSuspend} className='btn' style={{background: 'orange', color: '#fff', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'}}>
                 <FaPause /> Suspendă
@@ -200,14 +175,12 @@ function Ticket() {
 
       {notes.map((note) => (<NoteItem key={note._id} note={note} />))}
 
-      {/* Buton Inchidere */}
       {ticket.status !== 'closed' && (
         <button onClick={onTicketCloseClick} className='btn btn-block btn-danger' style={{ width: '100%', marginTop: '40px', background: 'darkred' }}>
           Închide Tichetul
         </button>
       )}
 
-      {/* Modal Confirmare Inchidere */}
       {confirmationOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '10px', width: '90%', maxWidth: '400px', textAlign: 'center', boxShadow: '0 5px 15px rgba(0,0,0,0.3)' }}>

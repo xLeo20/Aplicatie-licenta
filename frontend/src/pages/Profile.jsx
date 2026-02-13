@@ -1,34 +1,30 @@
 import { useState, useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux' // Importam useDispatch
+import { useSelector, useDispatch } from 'react-redux'
 import { Link } from 'react-router-dom'
-import { FaUserCircle, FaIdCard, FaBuilding, FaUserTag, FaCamera } from 'react-icons/fa'
+import { FaUserCircle, FaIdCard, FaBuilding, FaUserTag, FaCamera, FaEnvelope, FaArrowLeft, FaSave } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import axios from 'axios'
-import { logout, reset } from '../features/auth/authSlice' // Ca sa putem face update fortat (login silentios)
 
 function Profile() {
   const { user } = useSelector((state) => state.auth)
   const dispatch = useDispatch()
   
-  // State pentru fisierul selectat
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(user?.profileImage || null)
 
   useEffect(() => {
      if (user?.profileImage) {
-         // Construim URL-ul complet daca e cale relativa
          setPreview(user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage}`)
      }
   }, [user])
 
-  // Cand utilizatorul alege un fisier
   const onFileChange = (e) => {
-      setFile(e.target.files[0])
-      // Facem un preview local imediat
-      setPreview(URL.createObjectURL(e.target.files[0]))
+      if (e.target.files[0]) {
+        setFile(e.target.files[0])
+        setPreview(URL.createObjectURL(e.target.files[0]))
+      }
   }
 
-  // Cand apasa "Incarca Poza"
   const onUpload = async () => {
       if(!file) {
           toast.error('Te rog selectează o poză mai întâi.')
@@ -36,7 +32,7 @@ function Profile() {
       }
 
       const formData = new FormData()
-      formData.append('image', file) // 'image' trebuie sa bata cu upload.single('image') din backend
+      formData.append('image', file)
 
       try {
           const config = {
@@ -47,13 +43,8 @@ function Profile() {
           }
 
           const res = await axios.post('/api/users/upload', formData, config)
-          
           toast.success('Poza de profil actualizată!')
-          
-          // TRUC: Actualizam userul in localStorage cu noile date primite de la server
           localStorage.setItem('user', JSON.stringify(res.data))
-          
-          // Fortam un refresh al paginii ca sa se vada peste tot (sau am putea face un update in Redux)
           window.location.reload()
 
       } catch (error) {
@@ -62,94 +53,121 @@ function Profile() {
   }
 
   if (!user) {
-    return <p>Se încarcă profilul...</p>
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-white text-xl animate-pulse">Se încarcă profilul...</p>
+      </div>
+    )
   }
 
   return (
-    <div className='profile-container' style={{ maxWidth: '600px', margin: '0 auto', padding: '20px' }}>
-      <h1 className="main-title" style={{ textAlign: 'center', marginBottom: '40px', fontSize: '2.5rem', color: '#333' }}>Profilul Meu</h1>
-
-      <div className='profile-card'>
-        
-        {/* Header-ul Cardului cu Poza */}
-        <div style={{ backgroundColor: '#f4f4f4', padding: '30px', textAlign: 'center', borderBottom: '1px solid #ddd' }}>
-          
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            {preview ? (
-                <img 
-                    src={preview} 
-                    alt="Profile" 
-                    style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '4px solid white', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }} 
-                />
-            ) : (
-                <FaUserCircle size={100} color="#ccc" />
-            )}
-            
-            {/* Inputul de fisier ascuns si Label-ul care il activeaza */}
-            <label htmlFor="fileInput" style={{ 
-                position: 'absolute', bottom: '0', right: '0', 
-                backgroundColor: '#0056b3', color: 'white', 
-                padding: '8px', borderRadius: '50%', cursor: 'pointer',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-            }}>
-                <FaCamera size={16} />
-            </label>
-            <input 
-                type="file" 
-                id="fileInput" 
-                style={{ display: 'none' }} 
-                onChange={onFileChange}
-                accept="image/*"
-            />
-          </div>
-
-          <h2 style={{ margin: '15px 0 5px 0', color: '#333' }}>{user.name}</h2>
-          <p style={{ color: '#777' }}>{user.email}</p>
-
-          {file && (
-              <button onClick={onUpload} className='btn' style={{ marginTop: '15px', fontSize: '14px', padding: '5px 15px' }}>
-                  Salvează Noua Poză
-              </button>
-          )}
-        </div>
-
-        {/* Detaliile - Raman la fel */}
-        <div style={{ padding: '30px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
-            <FaIdCard size={25} color='#555' style={{ marginRight: '15px' }} />
-            <div>
-              <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>ID Utilizator</p>
-              <p style={{ fontWeight: 'bold', margin: 0, color: '#333' }}>{user._id}</p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
-            <FaUserTag size={25} color='#555' style={{ marginRight: '15px' }} />
-            <div>
-              <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>Rol în sistem</p>
-              <p style={{ fontWeight: 'bold', margin: 0, textTransform: 'capitalize', color: user.role === 'admin' ? 'red' : 'blue' }}>
-                {user.role}
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-            <FaBuilding size={25} color='#555' style={{ marginRight: '15px' }} />
-            <div>
-              <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>Departament</p>
-              <p style={{ fontWeight: 'bold', margin: 0, color: '#333' }}>
-                {user.department || 'General'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ marginTop: '30px', textAlign: 'center' }}>
-        <Link to='/' className='btn btn-reverse'>
-          Înapoi la Dashboard
+    <div className="max-w-4xl mx-auto px-4 py-12 animate-in fade-in zoom-in duration-500">
+      
+      {/* --- HEADER --- */}
+      <div className="flex items-center gap-4 mb-8">
+        <Link to="/" className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl transition-all shadow-sm group">
+          <FaArrowLeft className="group-hover:-translate-x-1 transition-transform" /> 
+          <span>Înapoi la Dashboard</span>
         </Link>
+        <h1 className="text-3xl font-black text-white drop-shadow-md">Profilul Meu</h1>
       </div>
+
+      {/* --- MAIN PROFILE CARD --- */}
+      <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2.5rem] shadow-2xl overflow-hidden">
+        
+        {/* Banner Decorativ Superior */}
+        <div className="h-40 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 opacity-80"></div>
+
+        <div className="px-8 pb-10">
+          {/* Avatar Section */}
+          <div className="relative flex justify-center -mt-20 mb-6">
+            <div className="bg-white p-1.5 rounded-full shadow-2xl transition-transform hover:scale-105 duration-300">
+              <div className="relative w-36 h-36 rounded-full overflow-hidden border-4 border-white">
+                {preview ? (
+                  <img src={preview} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-7xl">
+                    <FaUserCircle />
+                  </div>
+                )}
+                
+                {/* Camera Overlay */}
+                <label htmlFor="fileInput" className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                   <FaCamera className="text-white text-3xl" />
+                </label>
+              </div>
+            </div>
+            
+            {/* Input invizibil */}
+            <input type="file" id="fileInput" className="hidden" onChange={onFileChange} accept="image/*" />
+          </div>
+
+          {/* User Identity Section */}
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-black text-white tracking-tight">{user.name}</h2>
+            <div className="flex items-center justify-center gap-2 text-white/70 mt-2 text-lg font-medium">
+              <FaEnvelope className="text-sm" /> {user.email}
+            </div>
+
+            {/* Buton Salvare Poza (Apare doar daca ai ales un fisier) */}
+            {file && (
+              <button 
+                onClick={onUpload} 
+                className="mt-6 inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transition-all animate-bounce"
+              >
+                <FaSave /> Salvează Noua Poză
+              </button>
+            )}
+          </div>
+
+          {/* Details Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            
+            {/* ID Card */}
+            <div className="bg-white/5 border border-white/10 p-6 rounded-3xl flex items-center gap-5 group hover:bg-white/10 transition-all">
+              <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white text-2xl group-hover:rotate-12 transition-transform">
+                <FaIdCard />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] text-white/50 uppercase font-black tracking-widest mb-1">ID Utilizator</span>
+                <span className="text-xs text-white font-mono break-all leading-tight">{user._id}</span>
+              </div>
+            </div>
+
+            {/* Role Card */}
+            <div className="bg-white/5 border border-white/10 p-6 rounded-3xl flex items-center gap-5 group hover:bg-white/10 transition-all">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl group-hover:rotate-12 transition-transform ${
+                user.role === 'admin' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'
+              }`}>
+                <FaUserTag />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] text-white/50 uppercase font-black tracking-widest mb-1">Rol în Sistem</span>
+                <span className={`text-base font-bold uppercase tracking-wider ${
+                  user.role === 'admin' ? 'text-red-400' : 'text-blue-400'
+                }`}>{user.role}</span>
+              </div>
+            </div>
+
+            {/* Department Card */}
+            <div className="bg-white/5 border border-white/10 p-6 rounded-3xl flex items-center gap-5 group hover:bg-white/10 transition-all md:col-span-2">
+              <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-2xl group-hover:rotate-12 transition-transform">
+                <FaBuilding />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] text-white/50 uppercase font-black tracking-widest mb-1">Departament</span>
+                <span className="text-lg font-bold text-white uppercase tracking-wider">{user.department || 'General'}</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* Mesaj subsol */}
+      <p className="text-center text-white/30 text-xs mt-10 italic">
+        * Setările avansate ale contului pot fi modificate doar de către departamentul IT.
+      </p>
     </div>
   )
 }

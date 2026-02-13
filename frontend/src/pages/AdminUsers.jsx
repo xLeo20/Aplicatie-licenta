@@ -35,7 +35,6 @@ function AdminUsers() {
       const config = {
         headers: { Authorization: `Bearer ${user.token}` },
       }
-      // Folosim ruta corecta prin proxy
       const response = await axios.get('/api/users/all', config)
       
       if (Array.isArray(response.data)) {
@@ -80,11 +79,10 @@ function AdminUsers() {
         if (modalType === 'add') {
             // --- LOGICA DE CREARE ---
             const res = await axios.post('/api/users/add', formData, config)
-            setUsers([...users, res.data]) // Adaugam noul user in lista
+            setUsers([...users, res.data]) 
             toast.success('Utilizator creat cu succes!')
         } else {
             // --- LOGICA DE EDITARE ---
-            // Daca parola e goala, o scoatem din obiect ca sa nu o suprascriem cu null/gol
             const dataToSend = { ...formData }
             if(!dataToSend.password) delete dataToSend.password
 
@@ -115,11 +113,10 @@ function AdminUsers() {
   const openEditModal = (userToEdit) => {
     setModalType('edit')
     setCurrentUserId(userToEdit._id)
-    // Populam formularul cu datele existente (fara parola)
     setFormData({
         name: userToEdit.name,
         email: userToEdit.email,
-        password: '', // Lasam gol, se completeaza doar daca vrea sa o schimbe
+        password: '', 
         role: userToEdit.role,
         department: userToEdit.department || 'General'
     })
@@ -147,132 +144,211 @@ function AdminUsers() {
     // eslint-disable-next-line
   }, [user, navigate])
 
+  // Helper pentru Badge Roluri
+  const getRoleBadge = (role) => {
+      switch(role) {
+          case 'admin':
+              return (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200 shadow-sm">
+                      <FaUserShield className="text-sm"/> ADMIN
+                  </span>
+              );
+          case 'agent':
+              return (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 shadow-sm">
+                      <FaUserTie className="text-sm"/> AGENT
+                  </span>
+              );
+          default: 
+              return (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200 shadow-sm">
+                      <FaUser className="text-sm"/> ANGAJAT
+                  </span>
+              );
+      }
+  }
+
   if (isLoading) return <Spinner />
 
   return (
-    <>
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+    <div className="min-h-screen bg-gray-50 p-6 md:p-10 font-sans text-gray-900">
+      
+      {/* --- HEADER --- */}
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h1 style={{ fontSize: '2rem', marginBottom: '5px' }}>Panou Administrare</h1>
-            <p style={{ color: '#555' }}>Gestionează utilizatorii, rolurile și departamentele</p>
+            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Panou Administrare</h1>
+            <p className="text-gray-500 mt-1">Gestionează utilizatorii, rolurile și departamentele.</p>
           </div>
-          <button onClick={openAddModal} className='btn' style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <FaPlus /> Adaugă Utilizator
+          <button 
+            onClick={openAddModal} 
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-5 rounded-lg shadow-lg transition-all transform hover:scale-105 active:scale-95"
+          >
+              <FaPlus /> 
+              <span>Adaugă Utilizator</span>
           </button>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', boxShadow: '0 5px 15px rgba(0,0,0,0.1)' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#333', color: '#fff', textAlign: 'left' }}>
-              <th style={{ padding: '15px' }}>Nume</th>
-              <th style={{ padding: '15px' }}>Email</th>
-              <th style={{ padding: '15px' }}>Rol</th>
-              <th style={{ padding: '15px' }}>Departament</th>
-              <th style={{ padding: '15px', textAlign: 'center' }}>Acțiuni</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.isArray(users) && users.length > 0 ? (
-                users.map((u) => (
-                <tr key={u._id} style={{ borderBottom: '1px solid #eee', backgroundColor: '#fff' }}>
-                    <td style={{ padding: '15px', fontWeight: 'bold' }}>{u.name}</td>
-                    <td style={{ padding: '15px' }}>{u.email}</td>
-                    <td style={{ padding: '15px' }}>
-                    <span style={{ 
-                        display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '15px', fontSize: '12px', fontWeight: 'bold',
-                        backgroundColor: u.role === 'admin' ? '#ffebee' : u.role === 'agent' ? '#e3f2fd' : '#f5f5f5',
-                        color: u.role === 'admin' ? 'red' : u.role === 'agent' ? 'blue' : '#333'
-                    }}>
-                        {u.role === 'admin' && <FaUserShield />}
-                        {u.role === 'agent' && <FaUserTie />}
-                        {u.role === 'angajat' && <FaUser />}
-                        {u.role ? u.role.toUpperCase() : 'N/A'}
-                    </span>
-                    </td>
-                    <td style={{ padding: '15px' }}>{u.department || '-'}</td>
-                    <td style={{ padding: '15px', textAlign: 'center' }}>
-                        {/* Buton Editare */}
-                        <button onClick={() => openEditModal(u)} style={{ marginRight: '15px', background: 'none', border: 'none', cursor: 'pointer', color: 'orange', fontSize: '18px' }} title="Editează">
-                            <FaEdit />
-                        </button>
-                        {/* Buton Stergere (Nu ne stergem pe noi insine) */}
-                        {u._id !== user._id && (
-                            <button onClick={() => deleteUser(u._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'red', fontSize: '18px' }} title="Șterge">
-                                <FaTrash />
-                            </button>
-                        )}
-                    </td>
-                </tr>
-                ))
-            ) : (
-                <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center' }}>Nu există utilizatori.</td></tr>
-            )}
-          </tbody>
-        </table>
+      {/* --- TABEL CARD --- */}
+      <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+                <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-xs tracking-wider">
+                        <th className="px-6 py-4 font-bold">Nume</th>
+                        <th className="px-6 py-4 font-bold">Email</th>
+                        <th className="px-6 py-4 font-bold">Rol</th>
+                        <th className="px-6 py-4 font-bold">Departament</th>
+                        <th className="px-6 py-4 font-bold text-center">Acțiuni</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                    {Array.isArray(users) && users.length > 0 ? (
+                        users.map((u) => (
+                        <tr key={u._id} className="hover:bg-gray-50 transition-colors duration-200 group">
+                            <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                                        {u.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    {u.name}
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">{u.email}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                {getRoleBadge(u.role)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm border border-gray-200">
+                                    {u.department || '-'}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <div className="flex items-center justify-center gap-3 opacity-80 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                        onClick={() => openEditModal(u)} 
+                                        className="text-amber-500 hover:text-amber-700 bg-amber-50 p-2 rounded-full hover:bg-amber-100 transition-colors"
+                                        title="Editează"
+                                    >
+                                        <FaEdit />
+                                    </button>
+                                    {u._id !== user._id && (
+                                        <button 
+                                            onClick={() => deleteUser(u._id)} 
+                                            className="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-full hover:bg-red-100 transition-colors"
+                                            title="Șterge"
+                                        >
+                                            <FaTrash />
+                                        </button>
+                                    )}
+                                </div>
+                            </td>
+                        </tr>
+                        ))
+                    ) : (
+                        <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-500">Nu există utilizatori înregistrați.</td></tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
       </div>
 
-      {/* --- MODAL PENTRU ADD/EDIT USER --- */}
+      {/* --- MODAL --- */}
       {modalOpen && (
-          <div style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999,
-              display: 'flex', justifyContent: 'center', alignItems: 'center'
-          }}>
-              <div style={{
-                  backgroundColor: '#fff', padding: '30px', borderRadius: '15px',
-                  width: '90%', maxWidth: '500px', position: 'relative',
-                  boxShadow: '0 5px 30px rgba(0,0,0,0.3)'
-              }}>
-                  <button onClick={closeModal} style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}><FaTimes /></button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative overflow-hidden transform transition-all scale-100">
                   
-                  <h2 style={{ marginBottom: '20px', textAlign: 'center' }}>
-                      {modalType === 'add' ? 'Adaugă Utilizator Nou' : 'Editează Utilizator'}
-                  </h2>
-
-                  <form onSubmit={onSubmit}>
-                      <div className='form-group'>
-                          <label>Nume</label>
-                          <input type='text' className='form-control' name='name' value={name} onChange={onChange} required />
-                      </div>
-                      <div className='form-group'>
-                          <label>Email</label>
-                          <input type='email' className='form-control' name='email' value={email} onChange={onChange} required />
-                      </div>
-                      <div className='form-group'>
-                          <label>Parolă {modalType === 'edit' && '(Lasă gol pentru a păstra parola veche)'}</label>
-                          <input type='password' className='form-control' name='password' value={password} onChange={onChange} placeholder={modalType === 'edit' ? '******' : ''} />
-                      </div>
-                      
-                      <div style={{display: 'flex', gap: '20px'}}>
-                        <div className='form-group' style={{flex: 1}}>
-                            <label>Rol</label>
-                            <select className='form-control' name='role' value={role} onChange={onChange}>
-                                <option value='angajat'>Angajat</option>
-                                <option value='agent'>Agent</option>
-                                <option value='admin'>Admin</option>
-                            </select>
-                        </div>
-                        <div className='form-group' style={{flex: 1}}>
-                            <label>Departament</label>
-                            <select className='form-control' name='department' value={department} onChange={onChange}>
-                                <option value='General'>General</option>
-                                <option value='IT'>IT</option>
-                                <option value='HR'>HR</option>
-                                <option value='Vanzari'>Vânzări</option>
-                                <option value='Suport'>Suport</option>
-                            </select>
-                        </div>
-                      </div>
-
-                      <button type='submit' className='btn btn-block' style={{ marginTop: '20px' }}>
-                          {modalType === 'add' ? 'Creează' : 'Salvează Modificările'}
+                  {/* Modal Header */}
+                  <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                      <h2 className="text-xl font-bold text-gray-800">
+                          {modalType === 'add' ? 'Adaugă Utilizator Nou' : 'Editează Utilizator'}
+                      </h2>
+                      <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                          <FaTimes size={20} />
                       </button>
-                  </form>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="p-6">
+                      <form onSubmit={onSubmit} className="space-y-4">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Nume</label>
+                              <input 
+                                type='text' 
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                name='name' 
+                                value={name} 
+                                onChange={onChange} 
+                                required 
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                              <input 
+                                type='email' 
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                name='email' 
+                                value={email} 
+                                onChange={onChange} 
+                                required 
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Parolă {modalType === 'edit' && <span className="text-xs text-gray-400 font-normal">(Opțional)</span>}
+                              </label>
+                              <input 
+                                type='password' 
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                name='password' 
+                                value={password} 
+                                onChange={onChange} 
+                                placeholder={modalType === 'edit' ? '******' : 'Introduceți parola'} 
+                              />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                                <select 
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+                                    name='role' 
+                                    value={role} 
+                                    onChange={onChange}
+                                >
+                                    <option value='angajat'>Angajat</option>
+                                    <option value='agent'>Agent</option>
+                                    <option value='admin'>Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Departament</label>
+                                <select 
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+                                    name='department' 
+                                    value={department} 
+                                    onChange={onChange}
+                                >
+                                    <option value='General'>General</option>
+                                    <option value='IT'>IT</option>
+                                    <option value='HR'>HR</option>
+                                    <option value='Vanzari'>Vânzări</option>
+                                    <option value='Suport'>Suport</option>
+                                </select>
+                            </div>
+                          </div>
+
+                          <button 
+                            type='submit' 
+                            className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-md transition-transform active:scale-[0.98]"
+                          >
+                              {modalType === 'add' ? 'Creează Cont' : 'Salvează Modificările'}
+                          </button>
+                      </form>
+                  </div>
               </div>
           </div>
       )}
-    </>
+    </div>
   )
 }
 
