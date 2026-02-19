@@ -8,9 +8,15 @@ function NoteItem({ note, onImageClick }) {
   const isMine = note.user === user._id
 
   // Construim URL-ul corect pentru imagine
-  const attachmentUrl = note.attachment 
-      ? (note.attachment.startsWith('http') ? note.attachment : `http://localhost:5000${note.attachment}`)
-      : null;
+  const getAttachmentUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.replace(/\\/g, '/');
+    const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+    return `http://localhost:5000${finalPath}`;
+};
+
+const attachmentUrl = getAttachmentUrl(note.attachment);
 
   return (
     <div className={`flex w-full mb-6 ${isMine ? 'justify-end' : 'justify-start'}`}>

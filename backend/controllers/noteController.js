@@ -63,6 +63,17 @@ const addNote = asyncHandler(async (req, res) => {
   // --- MODIFICARE: Populam nota nou creata inainte sa o trimitem inapoi ---
   const populatedNote = await Note.findById(note._id).populate('user', 'name role');
 
+  // -------- NOU: EMITEM NOTIFICAREA PRIN SOCKET.IO --------
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('notificare_noua', {
+      ticketId: req.params.ticketId,
+      message: `Notă nouă adăugată de ${user.name} la tichetul #${ticket.ticketId || ticket._id.toString().slice(-4)}`,
+      type: 'note'
+    });
+  }
+  // --------------------------------------------------------
+
   res.status(200).json(populatedNote);
 });
 

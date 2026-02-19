@@ -1,37 +1,64 @@
-const path = require('path');
 const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv').config();
 const colors = require('colors');
+const dotenv = require('dotenv').config();
+const { errorHandler } = require('./middleware/errorMiddleware');
 const connectDB = require('./config/db');
-// --- LINIA NOUA AICI ---
-const { errorHandler } = require('./middleware/errorMiddleware'); 
+const path = require('path');
+
+// --- ACESTEA SUNT LINIILE CARE LIPSEAU ---
+const http = require('http'); 
+const { Server } = require('socket.io');
+// -----------------------------------------
 
 const PORT = process.env.PORT || 5000;
 
-// Conectare DB
+// Conectarea la baza de date
 connectDB();
 
 const app = express();
 
-app.use(cors());
+// Creăm serverul HTTP folosind aplicația Express
+const server = http.createServer(app);
+
+// Inițializăm Socket.io și permitem conexiuni de pe Frontend-ul tău
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:3000', 'http://localhost:5173'], // Porturile tale de React/Vite
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  },
+});
+
+// Facem "io" accesibil peste tot în aplicație (în controllere)
+app.set('io', io);
+
+// Ascultăm când un utilizator se conectează la WebSockets
+io.on('connection', (socket) => {
+  console.log(`Un utilizator s-a conectat la Socket.io: ${socket.id}`.cyan);
+
+  socket.on('disconnect', () => {
+    console.log(`Utilizator deconectat: ${socket.id}`.gray);
+  });
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.get('/', (req, res) => {
-    res.status(200).json({ message: 'Bine ai venit pe API-ul de Ticketing' });
-});
+// Permite accesul public la pozele încărcate (Pentru atașamente)
+// Folosim path.resolve() ca să găsească folderul 'uploads' exact unde rulează serverul
+const _dirname = path.resolve();
+// În server.js
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Rute
+// Rutele
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/tickets', require('./routes/ticketRoutes'));
+app.use('/api/faqs', require('./routes/faqRoutes'));
+
+// Middleware pentru erori
+app.use(errorHandler);
+
+// Pornim SERVERUL (HTTP + Socket.io) pe portul 5000
+server.listen(PORT, () => console.log(`Server started on port ${PORT}`.yellow.bold));
 
 
-app.use('/api/faqs', require('./routes/faqRoutes'))
-
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// --- UTILIZAREA ERROR HANDLER AICI ---
-app.use(errorHandler); 
-
-app.listen(PORT, () => console.log(`Serverul a pornit pe portul ${PORT}`));
+//constan

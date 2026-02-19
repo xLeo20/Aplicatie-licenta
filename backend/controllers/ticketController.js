@@ -26,36 +26,47 @@ const getTickets = asyncHandler(async (req, res) => {
 // @desc    Create new ticket
 // @route   POST /api/tickets
 // @access  Private
+// @desc    Create new ticket
+// @route   POST /api/tickets
+// @access  Private
 const createTicket = asyncHandler(async (req, res) => {
-  // Am adăugat 'attachment' la destrămare
-  const { product, description, priority, attachment } = req.body
+  const { product, description, priority, attachment } = req.body;
 
   if (!product || !description) {
-    res.status(400)
-    throw new Error('Please add a product and description')
+    res.status(400);
+    throw new Error('Please add a product and description');
   }
 
-  const user = await User.findById(req.user.id)
+  const user = await User.findById(req.user.id);
   if (!user) {
-    res.status(401)
-    throw new Error('User not found')
+    res.status(401);
+    throw new Error('User not found');
   }
 
-  // Setare Deadline standard (ex: 24h) - pastreaza logica ta aici daca e diferita
+  // --- LOGICA PENTRU ID SECVENȚIAL (1, 2, 3...) REPARATĂ ---
+  // Căutăm în baza de date tichetul cu cel mai mare număr
+  const lastTicket = await Ticket.findOne().sort({ ticketId: -1 });
+  
+  // Dacă există un tichet vechi, adunăm +1 la ID-ul lui. Dacă nu, începem de la 1.
+  const newTicketId = lastTicket && lastTicket.ticketId ? lastTicket.ticketId + 1 : 1;
+  // -----------------------------------------------------------
+
+  // Setare Deadline standard (ex: 24h)
   const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   const ticket = await Ticket.create({
+    ticketId: newTicketId,  // <--- Salvăm numărul frumos aici!
     product,
     description,
     priority,
     user: req.user.id,
     status: 'new',
     deadline: deadline,
-    attachment: attachment || null, // <--- ADAUGĂ AICI SALVAREA FIȘIERULUI
-  })
+    attachment: attachment || null, 
+  });
 
-  res.status(201).json(ticket)
-})
+  res.status(201).json(ticket);
+});
 
 // @desc    Preia un singur tichet
 // @route   GET /api/tickets/:id

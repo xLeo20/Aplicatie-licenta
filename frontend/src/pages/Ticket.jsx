@@ -104,7 +104,16 @@ function Ticket() {
   }
 
   const displayId = ticket?.ticketId ? `#${ticket.ticketId}` : (ticket?._id ? `#${ticket._id.substring(ticket._id.length - 4)}` : '');
-  const mainAttachmentUrl = ticket?.attachment ? (ticket.attachment.startsWith('http') ? ticket.attachment : `http://localhost:5000${ticket.attachment}`) : null;
+  // Funcție care curăță backslash-urile de pe Windows și formează URL-ul corect
+const getAttachmentUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.replace(/\\/g, '/'); // Transformă \ în /
+    const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+    return `http://localhost:5000${finalPath}`;
+};
+
+const mainAttachmentUrl = getAttachmentUrl(ticket?.attachment);
 
   return (
     <div className="w-full flex flex-col items-center px-4 py-10 animate-in fade-in duration-500">
