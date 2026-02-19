@@ -25,13 +25,14 @@ export const getNotes = createAsyncThunk(
   }
 )
 
-// Creează o notă
+// Creează o notă (ACTUALIZAT PENTRU ATAȘAMENTE)
 export const createNote = createAsyncThunk(
   'notes/create',
-  async ({ noteText, ticketId }, thunkAPI) => {
+  async (noteData, thunkAPI) => {
     try {
       const token = thunkAPI.getState().auth.user.token
-      return await noteService.createNote(noteText, ticketId, token)
+      // Pasăm întregul obiect noteData (care conține și textul și poza)
+      return await noteService.createNote(noteData, token)
     } catch (error) {
       const message =
         (error.response && error.response.data && error.response.data.message) ||
@@ -76,5 +77,6 @@ export const noteSlice = createSlice({
   },
 })
 
+// Exportăm corect acțiunile și reducer-ul (Aici era greșeala ta cu notesSlice)
 export const { reset } = noteSlice.actions
 export default noteSlice.reducer

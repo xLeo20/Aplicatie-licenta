@@ -23,52 +23,39 @@ const getTickets = asyncHandler(async (req, res) => {
 
 // @desc    Create new ticket (AUTO-INCREMENT)
 // @route   POST /api/tickets
+// @desc    Create new ticket
+// @route   POST /api/tickets
+// @access  Private
 const createTicket = asyncHandler(async (req, res) => {
-    const { product, description, priority } = req.body;
+  // Am adăugat 'attachment' la destrămare
+  const { product, description, priority, attachment } = req.body
 
-    if (!product || !description) {
-        res.status(400);
-        throw new Error('Te rog completeaza campurile produs si descriere');
-    }
+  if (!product || !description) {
+    res.status(400)
+    throw new Error('Please add a product and description')
+  }
 
-    // --- LOGICA AUTO-INCREMENT ---
-    const counter = await Counter.findOneAndUpdate(
-        { id: 'ticketSeq' }, 
-        { $inc: { seq: 1 } }, 
-        { new: true, upsert: true } 
-    );
+  const user = await User.findById(req.user.id)
+  if (!user) {
+    res.status(401)
+    throw new Error('User not found')
+  }
 
-    let ticketSeqId;
-    if(!counter) {
-        ticketSeqId = 1001;
-    } else {
-        ticketSeqId = counter.seq;
-    }
-    
-    console.log("Generare Tichet NOU cu ID Scurt:", ticketSeqId);
+  // Setare Deadline standard (ex: 24h) - pastreaza logica ta aici daca e diferita
+  const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Calcul SLA
-    let deadline = new Date();
-    if (priority === 'Mare') {
-        deadline.setHours(deadline.getHours() + 24);
-    } else if (priority === 'Medie') {
-        deadline.setHours(deadline.getHours() + 48);
-    } else {
-        deadline.setHours(deadline.getHours() + 72);
-    }
+  const ticket = await Ticket.create({
+    product,
+    description,
+    priority,
+    user: req.user.id,
+    status: 'new',
+    deadline: deadline,
+    attachment: attachment || null, // <--- ADAUGĂ AICI SALVAREA FIȘIERULUI
+  })
 
-    const ticket = await Ticket.create({
-        ticketId: ticketSeqId,
-        product,
-        description,
-        user: req.user.id,
-        status: 'new',
-        priority: priority || 'Mica',
-        deadline: deadline
-    });
-
-    res.status(201).json(ticket);
-});
+  res.status(201).json(ticket)
+})
 
 // @desc    Preia un singur tichet
 // @route   GET /api/tickets/:id

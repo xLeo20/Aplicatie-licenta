@@ -1,4 +1,4 @@
-import { FaSignInAlt, FaSignOutAlt, FaUser, FaTools, FaChartLine, FaCalendarAlt, FaClipboardList } from 'react-icons/fa'
+import { FaSignInAlt, FaSignOutAlt, FaUser, FaTools, FaChartLine, FaCalendarAlt, FaClipboardList, FaBook } from 'react-icons/fa'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { logout, reset } from '../features/auth/authSlice'
@@ -65,6 +65,12 @@ function Header() {
                   <FaClipboardList /> Tichete
                 </Link>
               </li>
+                <li>
+                <Link to='/knowledge-base' className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${isActive('/knowledge-base')}`}>
+                <FaBook /> FAQ
+                   </Link>
+                </li>
+              
             </>
           ) : null}
         </ul>

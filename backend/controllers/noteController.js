@@ -48,12 +48,16 @@ const addNote = asyncHandler(async (req, res) => {
 
   const isStaffMember = user.role === 'agent' || user.role === 'admin';
 
+  // --- EXTRAGEM TEXTUL ȘI ATAȘAMENTUL DIN REQUEST ---
+  const { text, attachment } = req.body;
+
   const note = await Note.create({
-    text: req.body.text,
+    text: text,
     isStaff: isStaffMember, 
     staffId: isStaffMember ? user.id : null,
     ticket: req.params.ticketId,
-    user: req.user.id
+    user: req.user.id,
+    attachment: attachment || null // <--- SALVĂM POZA AICI
   });
 
   // --- MODIFICARE: Populam nota nou creata inainte sa o trimitem inapoi ---

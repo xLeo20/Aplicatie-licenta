@@ -41,6 +41,10 @@ const ticketSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: false
+    },
+    attachment: {
+      type: String, // Aici vom salva calea către fișier (ex: /uploads/screenshot.png)
+      default: null
     }
 }, {
     timestamps: true

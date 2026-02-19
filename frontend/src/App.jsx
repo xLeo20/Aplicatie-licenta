@@ -16,6 +16,7 @@ import Dashboard from './pages/Dashboard'
 import { AnimatePresence } from 'framer-motion'
 import PageAnimation from './components/PageAnimation'
 import TicketCalendar from './pages/TicketCalendar'
+import KnowledgeBase from './pages/KnowledgeBase'
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -30,6 +31,7 @@ function AnimatedRoutes() {
         
         {/* Rute Protejate (Necesita Login) */}
         <Route element={<PrivateRoute />}>
+            <Route path='/knowledge-base' element={<KnowledgeBase />} />
             <Route path='/dashboard' element={<PageAnimation><Dashboard /></PageAnimation>} />
             <Route path='/new-ticket' element={<PageAnimation><NewTicket /></PageAnimation>} />
             <Route path='/tickets' element={<PageAnimation><Tickets /></PageAnimation>} />

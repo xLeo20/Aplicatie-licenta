@@ -26,7 +26,10 @@ app.get('/', (req, res) => {
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/tickets', require('./routes/ticketRoutes'));
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use('/api/faqs', require('./routes/faqRoutes'))
+
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // --- UTILIZAREA ERROR HANDLER AICI ---
 app.use(errorHandler); 
