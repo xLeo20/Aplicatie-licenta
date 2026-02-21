@@ -233,11 +233,9 @@ function Header() {
             </div>
           ) : (
             <div className="flex gap-4">
-              <Link to='/login' className="flex items-center gap-2 text-white/70 hover:text-white font-bold text-sm transition-all">
-                <FaSignInAlt /> Login
-              </Link>
-              <Link to='/register' className="bg-blue-600 hover:bg-blue-500 text-white font-black px-6 py-2 rounded-xl shadow-lg transition-all text-sm">
-                Sign Up
+              {/* AICI AM SCOS BUTONUL DE SIGN UP */}
+              <Link to='/login' className="bg-blue-600 hover:bg-blue-500 text-white font-black px-6 py-2 rounded-xl shadow-lg transition-all text-sm flex items-center gap-2">
+                <FaSignInAlt /> Autentificare
               </Link>
             </div>
           )}

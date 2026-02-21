@@ -34,6 +34,42 @@ const upload = multer({
   },
 });
 
+const changePassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  // Verificăm dacă a trimis ambele câmpuri
+  if (!oldPassword || !newPassword) {
+    res.status(400);
+    throw new Error('Te rog completează parola veche și parola nouă');
+  }
+
+  // Căutăm userul curent în baza de date
+  const user = await User.findById(req.user.id);
+
+  if (!user) {
+    res.status(401);
+    throw new Error('Utilizator negăsit');
+  }
+
+  // Verificăm dacă parola veche introdusă se potrivește cu cea din baza de date
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+
+  if (!isMatch) {
+    res.status(400);
+    throw new Error('Parola veche este incorectă');
+  }
+
+  // Hash-uim (criptăm) noua parolă
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+  // Salvăm noua parolă
+  user.password = hashedPassword;
+  await user.save();
+
+  res.status(200).json({ message: 'Parola a fost actualizată cu succes!' });
+});
+
 // --- CONTROLLERE ---
 
 // @desc    Inregistrare utilizator (Public - Self Register)
@@ -233,5 +269,6 @@ module.exports = {
   createUser,
   updateUser,
   upload,             // <--- Exportam Middleware Multer
-  uploadProfilePhoto  // <--- Exportam Functia Upload
+  uploadProfilePhoto,  // <--- Exportam Functia Upload
+  changePassword      // <--- Exportam Functia de Schimbare Parola
 };

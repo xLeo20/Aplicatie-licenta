@@ -8,8 +8,9 @@ const {
   deleteUser,
   createUser, 
   updateUser,
-  upload,             // <--- Import Multer
-  uploadProfilePhoto  // <--- Import Controller Upload
+  upload,             
+  uploadProfilePhoto, 
+  changePassword      // <--- Importul funcției de parolă
 } = require('../controllers/userController');
 
 const { protect } = require('../middleware/authMiddleware'); 
@@ -20,12 +21,16 @@ router.post('/login', loginUser);
 
 // Rute private (User Logat)
 router.get('/me', protect, getMe);
-router.post('/upload', protect, upload.single('image'), uploadProfilePhoto); // <--- Ruta Upload Poza
+router.post('/upload', protect, upload.single('image'), uploadProfilePhoto);
+
+// --- RUTA PENTRU PAROLĂ TREBUIE SĂ FIE AICI (Deasupra celei cu :id) ---
+router.put('/change-password', protect, changePassword); 
+// ---------------------------------------------------------------------
 
 // Rute de Admin
 router.get('/all', protect, getAllUsers); 
 router.post('/add', protect, createUser);   
-router.put('/:id', protect, updateUser);    
+router.put('/:id', protect, updateUser);    // <--- Express se bloca aici înainte!
 router.delete('/:id', protect, deleteUser); 
 
 module.exports = router;
