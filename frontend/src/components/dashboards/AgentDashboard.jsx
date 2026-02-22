@@ -15,9 +15,14 @@ function AgentDashboard() {
   const dispatch = useDispatch()
 
   useEffect(() => {
+    // 1. Când intri pe pagină, forțăm preluarea datelor NOI din baza de date
     dispatch(getTickets())
-    return () => { if (isSuccess) dispatch(reset()) }
-  }, [dispatch, isSuccess])
+
+    // 2. Când pleci de pe pagină, curățăm memoria veche
+    return () => { 
+      dispatch(reset()) 
+    }
+  }, [dispatch]) // <--- SECRETUL: Doar "dispatch" aici! Așa se va rula de fiecare dată când intri pe pagină.
 
   if (isLoading) return <Spinner />
 

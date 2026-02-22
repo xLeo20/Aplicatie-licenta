@@ -21,11 +21,6 @@ const getTickets = asyncHandler(async (req, res) => {
   res.status(200).json(tickets);
 });
 
-// @desc    Create new ticket (AUTO-INCREMENT)
-// @route   POST /api/tickets
-// @desc    Create new ticket
-// @route   POST /api/tickets
-// @access  Private
 // @desc    Create new ticket
 // @route   POST /api/tickets
 // @access  Private
@@ -43,27 +38,32 @@ const createTicket = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  // --- LOGICA PENTRU ID SECVENȚIAL (1, 2, 3...) REPARATĂ ---
-  // Căutăm în baza de date tichetul cu cel mai mare număr
   const lastTicket = await Ticket.findOne().sort({ ticketId: -1 });
-  
-  // Dacă există un tichet vechi, adunăm +1 la ID-ul lui. Dacă nu, începem de la 1.
   const newTicketId = lastTicket && lastTicket.ticketId ? lastTicket.ticketId + 1 : 1;
-  // -----------------------------------------------------------
 
-  // Setare Deadline standard (ex: 24h)
   const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  
+  // NOU: Setare Deadline Preluare (10 minute)
+  const pickupDeadline = new Date(Date.now() + 10 * 60 * 1000);
 
   const ticket = await Ticket.create({
-    ticketId: newTicketId,  // <--- Salvăm numărul frumos aici!
+    ticketId: newTicketId,  
     product,
     description,
     priority,
     user: req.user.id,
     status: 'new',
     deadline: deadline,
+    pickupDeadline: pickupDeadline, // <--- Adăugat aici
     attachment: attachment || null, 
   });
+
+  // --- NOU: SOCKET.IO - Anunțăm toți clienții conectați că a apărut un tichet nou ---
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('tichet_nou_creat', ticket); 
+  }
+  // ---------------------------------------------------------------------------------
 
   res.status(201).json(ticket);
 });

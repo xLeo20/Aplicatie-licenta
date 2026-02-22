@@ -27,11 +27,16 @@ function NewTicket() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (isError) { toast.error(message) }
-    if (isSuccess) {
-      dispatch(reset())
-      navigate('/tickets')
+    if (isError) {
+      toast.error(message)
     }
+
+    // Dacă tichetul s-a creat cu succes
+    if (isSuccess) {
+      dispatch(reset()) // <--- CURĂȚĂM MEMORIA CA SĂ FORȚĂM REFRESH PE PAGINA URMĂTOARE
+      navigate('/tickets') // Redirecționăm
+    }
+
     dispatch(reset())
   }, [dispatch, isError, isSuccess, navigate, message])
 

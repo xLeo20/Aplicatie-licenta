@@ -8,6 +8,11 @@ import { FaSearch, FaFilter, FaFilePdf, FaTicketAlt } from 'react-icons/fa'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+// --- NOU: IMPORT SOCKET.IO ---
+import { io } from 'socket.io-client'
+const socket = io('http://localhost:5000')
+// -----------------------------
+
 function Tickets() {
   const { tickets, isLoading, isSuccess } = useSelector((state) => state.tickets)
   const dispatch = useDispatch()
@@ -17,10 +22,26 @@ function Tickets() {
 
   useEffect(() => {
     dispatch(getTickets())
-    return () => { if (isSuccess) dispatch(reset()) }
-  }, [dispatch, isSuccess])
+    return () => { 
+      dispatch(reset()) 
+    }
+  }, [dispatch])
 
-  // --- FILTRARE ---
+  // --- NOU: EFECTUL DE ASCULTARE SOCKET.IO ---
+  useEffect(() => {
+    // Stăm la pândă: Dacă pe server s-a creat un tichet nou, noi facem automat un refresh invizibil la listă
+    socket.on('tichet_nou_creat', () => {
+      // Reapelăm tichetele din baza de date fără ca userul să simtă
+      dispatch(getTickets())
+    })
+
+    // Curățăm ascultătorul la ieșirea de pe pagină
+    return () => {
+      socket.off('tichet_nou_creat')
+    }
+  }, [dispatch])
+  // -------------------------------------------
+
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.product.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (ticket.ticketId && ticket.ticketId.toString().includes(searchTerm))
@@ -28,16 +49,13 @@ function Tickets() {
     return matchesSearch && matchesStatus
   })
 
-  // --- LOGICA EXPORT PDF (ALINIERE PERFECTĂ CENTRATĂ) ---
   const exportPDF = () => {
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.width;
 
-    // 1. BRANDING HEADER
-    doc.setFillColor(15, 23, 42); // Slate-900
+    doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, 40, 'F');
 
-    // 2. TEXTE ANTET
     doc.setFontSize(22);
     doc.setTextColor(255, 255, 255);
     doc.text("Sistem Ticketing", 14, 20);
@@ -46,14 +64,12 @@ function Tickets() {
     doc.setTextColor(96, 165, 250);
     doc.text("Raport Oficial de Activitate", 14, 28);
 
-    // 3. INFO DREAPTA
     const date = new Date().toLocaleString('ro-RO');
     doc.setFontSize(10);
     doc.setTextColor(200, 200, 200);
     doc.text(`Generat: ${date}`, pageWidth - 15, 20, { align: 'right' });
     doc.text(`User: Admin`, pageWidth - 15, 28, { align: 'right' });
 
-    // 4. SUMMARY
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(12);
     doc.text(`Total Tichete in lista: ${filteredTickets.length}`, 14, 50);
@@ -61,14 +77,13 @@ function Tickets() {
     doc.setDrawColor(200, 200, 200);
     doc.line(14, 55, pageWidth - 14, 55);
 
-    // 5. DATE TABEL
     const tableColumn = ["ID", "Subiect / Produs", "Prioritate", "Status", "Data"];
     const tableRows = [];
 
     filteredTickets.forEach(ticket => {
       const ticketData = [
         ticket.ticketId || ticket._id.substring(ticket._id.length - 4),
-        ticket.product, // Va fi centrat acum
+        ticket.product,
         ticket.priority || 'N/A',
         ticket.status.toUpperCase(),
         new Date(ticket.createdAt).toLocaleDateString('ro-RO')
@@ -76,7 +91,6 @@ function Tickets() {
       tableRows.push(ticketData);
     });
 
-    // 6. GENERARE TABEL CU CENTRARE FORȚATĂ
     autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
@@ -85,20 +99,19 @@ function Tickets() {
         styles: {
             fontSize: 9,
             cellPadding: 3,
-            valign: 'middle', // Aliniere verticala la mijloc
-            halign: 'center'  // <--- ASTA CENTREAZA TOT TEXTUL DIN CELULE
+            valign: 'middle',
+            halign: 'center'  
         },
         headStyles: {
             fillColor: [59, 130, 246],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
-            halign: 'center' // Titlurile centrate
+            halign: 'center'
         },
-        // Putem suprascrie coloane specifice daca vrem, dar 'styles' global de mai sus rezolva tot
         columnStyles: {
-            0: { fontStyle: 'bold', cellWidth: 20 }, // ID mai mic
-            1: { cellWidth: 'auto' }, // Produs automat
-            3: { fontStyle: 'bold' }  // Status bold
+            0: { fontStyle: 'bold', cellWidth: 20 },
+            1: { cellWidth: 'auto' },
+            3: { fontStyle: 'bold' } 
         },
         alternateRowStyles: {
             fillColor: [240, 249, 255]
@@ -119,7 +132,6 @@ function Tickets() {
   return (
     <div className="w-full flex flex-col items-center px-4 py-8 animate-in fade-in duration-700">
       
-      {/* --- HEADER --- */}
       <div className="w-full max-w-6xl flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
         <div className="flex items-center gap-4">
           <BackButton url='/' />
@@ -136,7 +148,6 @@ function Tickets() {
         </button>
       </div>
 
-      {/* --- FILTRE --- */}
       <div className="w-full max-w-6xl bg-slate-900/40 backdrop-blur-xl border border-white/10 p-8 rounded-[2.5rem] shadow-2xl mb-10 ring-1 ring-white/5">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
           
@@ -172,7 +183,6 @@ function Tickets() {
         </div>
       </div>
 
-      {/* --- LISTA --- */}
       <div className="w-full max-w-6xl space-y-4">
         <div className="hidden md:grid grid-cols-5 gap-4 px-8 py-4 text-blue-200/40 font-black uppercase text-[10px] tracking-[0.2em] border-b border-white/5 mb-2">
           <div className="text-left">Dată / ID</div>

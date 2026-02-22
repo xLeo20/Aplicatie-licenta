@@ -37,6 +37,11 @@ const ticketSchema = mongoose.Schema({
         type: Date,
         required: false
     },
+    // NOU: SLA Preluare (Response SLA)
+    pickupDeadline: {
+        type: Date,
+        required: false
+    },
     assignedTo: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

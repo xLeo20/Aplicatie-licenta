@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { getTicket, closeTicket, suspendTicket, assignTicket } from '../features/tickets/ticketSlice'
 import { getNotes, createNote } from '../features/notes/noteSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus } from 'react-icons/fa' 
+import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch } from 'react-icons/fa' 
 import { Link } from 'react-router-dom'
 import Spinner from '../components/Spinner'
 import NoteItem from '../components/NoteItem'
@@ -31,6 +31,31 @@ function Ticket() {
   const dispatch = useDispatch()
   const { ticketId } = useParams()
 
+  // --- LOGICA TIMER MUTATĂ SUS (ÎNAINTE DE ORICE RETURN) ---
+  const calculateTimeRemaining = (deadline) => {
+    if (!deadline) return null;
+    const total = Date.parse(deadline) - Date.parse(new Date());
+    if (total <= 0) return { expired: true, text: "SLA Depășit" };
+    
+    const minutes = Math.floor((total / 1000 / 60) % 60);
+    const seconds = Math.floor((total / 1000) % 60);
+    return { expired: false, text: `${minutes}m ${seconds}s` };
+  };
+
+  const [pickupTimeLeft, setPickupTimeLeft] = useState(
+    ticket?.pickupDeadline ? calculateTimeRemaining(ticket.pickupDeadline) : null
+  );
+
+  useEffect(() => {
+    if (ticket?.pickupDeadline && ticket.status === 'new') {
+      const interval = setInterval(() => {
+        setPickupTimeLeft(calculateTimeRemaining(ticket.pickupDeadline));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [ticket]);
+  // --------------------------------------------------------
+
   useEffect(() => {
     if (isError) { toast.error(message) }
     dispatch(getTicket(ticketId))
@@ -56,7 +81,6 @@ function Ticket() {
     toast.success('Tichet preluat cu succes!')
   }
 
-  // Functia modificată pentru a suporta poză la adăugarea unei note
   const onNoteSubmit = async (e) => {
     e.preventDefault()
     if(!noteText.trim()) return;
@@ -85,6 +109,7 @@ function Ticket() {
     setModalIsOpen(false)
   }
 
+  // --- AICI SUNT RETURN-URILE TIMPURII (TOATE HOOKURILE TREBUIE SĂ FIE DEASUPRA LOR) ---
   if (isLoading || notesIsLoading) return <Spinner />
   if (isError) return <div className="text-white text-center py-20 text-2xl font-black">EROARE: {message}</div>
 
@@ -104,16 +129,16 @@ function Ticket() {
   }
 
   const displayId = ticket?.ticketId ? `#${ticket.ticketId}` : (ticket?._id ? `#${ticket._id.substring(ticket._id.length - 4)}` : '');
-  // Funcție care curăță backslash-urile de pe Windows și formează URL-ul corect
-const getAttachmentUrl = (path) => {
+  
+  const getAttachmentUrl = (path) => {
     if (!path) return null;
     if (path.startsWith('http')) return path;
-    const cleanPath = path.replace(/\\/g, '/'); // Transformă \ în /
+    const cleanPath = path.replace(/\\/g, '/');
     const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
     return `http://localhost:5000${finalPath}`;
-};
+  };
 
-const mainAttachmentUrl = getAttachmentUrl(ticket?.attachment);
+  const mainAttachmentUrl = getAttachmentUrl(ticket?.attachment);
 
   return (
     <div className="w-full flex flex-col items-center px-4 py-10 animate-in fade-in duration-500">
@@ -129,12 +154,38 @@ const mainAttachmentUrl = getAttachmentUrl(ticket?.attachment);
         {getStatusBadge(ticket.status)}
       </div>
 
-      {/* SLA */}
-      {ticket.status !== 'closed' && (
-        <div className="w-full max-w-5xl bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] shadow-2xl mb-8 ring-1 ring-white/10">
-            <SLACountdown deadline={ticket.deadline} createdAt={ticket.createdAt} status={ticket.status} />
-        </div>
-      )}
+      {/* ZONA SLA-URI */}
+      <div className="w-full max-w-5xl space-y-4 mb-8">
+          
+          {/* 1. SLA PRELUARE (Response Time - 10 Min) -> Apare DOAR când tichetul e NOU */}
+          {ticket.status === 'new' && ticket.pickupDeadline && (
+            <div className={`w-full backdrop-blur-xl border p-4 rounded-2xl flex justify-between items-center transition-all ${
+              pickupTimeLeft?.expired 
+                ? 'bg-red-500/10 border-red-500/30 ring-1 ring-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]' 
+                : 'bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20'
+            }`}>
+              <div className="flex items-center gap-3">
+                <FaStopwatch className={`text-2xl ${pickupTimeLeft?.expired ? 'text-red-500 animate-pulse' : 'text-blue-400'}`} />
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">SLA Preluare (10 Min)</p>
+                  <p className={`font-bold ${pickupTimeLeft?.expired ? 'text-red-400' : 'text-blue-300'}`}>Timp alocat pentru a asigna tichetul unui agent.</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className={`text-2xl font-black tabular-nums tracking-wider ${pickupTimeLeft?.expired ? 'text-red-500' : 'text-white'}`}>
+                  {pickupTimeLeft?.text}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 2. SLA REZOLVARE (Resolution Time - 24 Ore) */}
+          {ticket.status !== 'closed' && (
+            <div className="w-full bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] shadow-2xl ring-1 ring-white/10">
+                <SLACountdown deadline={ticket.deadline} createdAt={ticket.createdAt} status={ticket.status} />
+            </div>
+          )}
+      </div>
 
       {/* DETALII TICHET */}
       <div className="w-full max-w-5xl bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden mb-8 ring-1 ring-white/5">
@@ -219,10 +270,27 @@ const mainAttachmentUrl = getAttachmentUrl(ticket?.attachment);
         )}
       </div>
 
-      {/* ÎNCHIDERE TICHET */}
+      {/* ÎNCHIDERE TICHET - BLOCAT DACĂ ESTE 'NOU' */}
       {ticket.status !== 'closed' && (
-        <button onClick={() => setConfirmationOpen(true)} className="w-full max-w-5xl mt-12 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 font-black py-5 rounded-2xl shadow-2xl transition-all uppercase tracking-[0.2em] text-sm">
-          Închide Tichetul Definitiv
+        <button 
+          onClick={() => {
+            if (ticket.status === 'new') {
+              toast.error("Un tichet nu poate fi închis înainte de a fi preluat de un agent!", {
+                icon: "⚠️",
+                theme: "dark"
+              });
+              return;
+            }
+            setConfirmationOpen(true)
+          }} 
+          className={`w-full max-w-5xl mt-12 font-black py-5 rounded-2xl shadow-2xl transition-all uppercase tracking-[0.2em] text-sm
+            ${ticket.status === 'new' 
+              ? 'bg-slate-800/50 text-slate-500 border border-slate-700 cursor-not-allowed' 
+              : 'bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20'
+            }
+          `}
+        >
+          {ticket.status === 'new' ? 'Tichetul trebuie preluat înainte de închidere' : 'Închide Tichetul Definitiv'}
         </button>
       )}
 
@@ -286,7 +354,7 @@ const mainAttachmentUrl = getAttachmentUrl(ticket?.attachment);
           </div>
       )}
 
-      {/* Modal Confirmare Închidere (Rămâne neschimbat) */}
+      {/* Modal Confirmare Închidere */}
       {confirmationOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 animate-in zoom-in duration-200">
               <div className="bg-slate-900 border border-red-500/30 rounded-[2.5rem] p-10 max-w-md w-full text-center shadow-[0_0_50px_rgba(239,68,68,0.2)]">

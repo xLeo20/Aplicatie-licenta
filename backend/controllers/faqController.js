@@ -1,63 +1,62 @@
-const asyncHandler = require('express-async-handler')
-const Faq = require('../models/faqModel')
+const asyncHandler = require('express-async-handler');
+const Faq = require('../models/faqModel');
 
-// @desc    Obține toate articolele
+// @desc    Preia toate FAQ-urile
 // @route   GET /api/faqs
-// @access  Private
+// @access  Private (Toți angajații au voie să le vadă)
 const getFaqs = asyncHandler(async (req, res) => {
-  const faqs = await Faq.find().sort({ createdAt: -1 }) // Cele mai noi primele
-  res.status(200).json(faqs)
-})
+    const faqs = await Faq.find({});
+    res.status(200).json(faqs);
+});
 
-// @desc    Creează un articol nou
+// @desc    Crează un FAQ nou
 // @route   POST /api/faqs
-// @access  Private (Doar Admin/Agent)
+// @access  Private (Doar Agent / Admin)
 const createFaq = asyncHandler(async (req, res) => {
-  const { title, content, category } = req.body
+    const { question, answer, category } = req.body;
 
-  if (!title || !content || !category) {
-    res.status(400)
-    throw new Error('Te rog completează toate câmpurile')
-  }
+    if (!question || !answer) {
+        res.status(400);
+        throw new Error('Te rog completează întrebarea și răspunsul');
+    }
 
-  // Verificăm dacă utilizatorul are permisiunea (nu e simplu angajat)
-  if (req.user.role === 'angajat') {
-    res.status(403)
-    throw new Error('Acces interzis. Doar agenții și adminii pot adăuga articole.')
-  }
+    // Verificăm dacă user-ul este simplu angajat (nu are voie să adauge)
+    if (req.user.role === 'angajat') {
+        res.status(401);
+        throw new Error('Nu ești autorizat să adaugi articole în baza de cunoștințe');
+    }
 
-  const faq = await Faq.create({
-    title,
-    content,
-    category,
-    user: req.user.id,
-  })
+    const faq = await Faq.create({
+        question,
+        answer,
+        category: category || 'General'
+    });
 
-  res.status(201).json(faq)
-})
+    res.status(201).json(faq);
+});
 
-// @desc    Șterge un articol
+// @desc    Șterge un FAQ
 // @route   DELETE /api/faqs/:id
-// @access  Private (Doar Admin/Agent)
+// @access  Private (Doar Agent / Admin)
 const deleteFaq = asyncHandler(async (req, res) => {
-  const faq = await Faq.findById(req.params.id)
+    if (req.user.role === 'angajat') {
+        res.status(401);
+        throw new Error('Nu ești autorizat să ștergi articole');
+    }
 
-  if (!faq) {
-    res.status(404)
-    throw new Error('Articolul nu a fost găsit')
-  }
+    const faq = await Faq.findById(req.params.id);
 
-  if (req.user.role === 'angajat') {
-    res.status(403)
-    throw new Error('Acces interzis. Nu poți șterge acest articol.')
-  }
+    if (!faq) {
+        res.status(404);
+        throw new Error('Articolul nu a fost găsit');
+    }
 
-  await faq.deleteOne()
-  res.status(200).json({ id: req.params.id })
-})
+    await faq.deleteOne();
+    res.status(200).json({ success: true, id: req.params.id });
+});
 
 module.exports = {
-  getFaqs,
-  createFaq,
-  deleteFaq,
-}
+    getFaqs,
+    createFaq,
+    deleteFaq
+};
