@@ -10,7 +10,8 @@ const {
   deleteTicket, 
   updateTicket,
   assignTicket,
-  suspendTicket // <--- Importam functia noua
+  suspendTicket, // <--- Importam functia noua
+  addFeedback
 } = require('../controllers/ticketController');
 
 // --- 1. Importam router-ul de note
@@ -55,5 +56,5 @@ router.route('/:id')
 // Rute speciale (Assign, Suspend)
 router.put('/:id/assign', protect, assignTicket);
 router.put('/:id/suspend', protect, suspendTicket);
-
+router.route('/:id/feedback').post(protect, addFeedback)
 module.exports = router;

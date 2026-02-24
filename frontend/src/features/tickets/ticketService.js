@@ -72,6 +72,22 @@ const suspendTicket = async (ticketId, token) => {
   return response.data
 }
 
+const addFeedback = async (ticketId, feedbackData, token) => {
+  const config = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+
+  const response = await axios.post(
+    API_URL + ticketId + '/feedback',
+    feedbackData,
+    config
+  )
+
+  return response.data
+}
+
 const ticketService = {
   createTicket,
   getTickets,
@@ -79,6 +95,7 @@ const ticketService = {
   closeTicket,
   assignTicket,
   suspendTicket, // <--- Exportam
+  addFeedback // <--- Exportam
 }
 
 export default ticketService

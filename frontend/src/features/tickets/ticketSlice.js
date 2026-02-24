@@ -90,7 +90,7 @@ export const assignTicket = createAsyncThunk(
   }
 )
 
-// --- Suspenda tichet (NOU) ---
+// Suspenda tichet
 export const suspendTicket = createAsyncThunk(
   'tickets/suspend',
   async (ticketId, thunkAPI) => {
@@ -100,6 +100,25 @@ export const suspendTicket = createAsyncThunk(
     } catch (error) {
        const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString()
        return thunkAPI.rejectWithValue(message)
+    }
+  }
+)
+
+// --- Adauga Feedback (NOU) ---
+export const addFeedback = createAsyncThunk(
+  'tickets/addFeedback',
+  async ({ ticketId, rating, comment }, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token
+      return await ticketService.addFeedback(ticketId, { rating, comment }, token)
+    } catch (error) {
+      const message =
+        (error.response &&
+          error.response.data &&
+          error.response.data.message) ||
+        error.message ||
+        error.toString()
+      return thunkAPI.rejectWithValue(message)
     }
   }
 )
@@ -164,11 +183,16 @@ export const ticketSlice = createSlice({
         state.isSuccess = true
         state.ticket = action.payload
       })
-      // --- Case Suspendare (NOU) ---
       .addCase(suspendTicket.fulfilled, (state, action) => {
         state.isLoading = false
         state.isSuccess = true
-        state.ticket = action.payload // Actualizam tichetul cu statusul 'suspended'
+        state.ticket = action.payload
+      })
+      // --- Case Feedback (NOU) ---
+      .addCase(addFeedback.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.ticket = action.payload; // Actualizăm tichetul cu datele de feedback
       })
   },
 })

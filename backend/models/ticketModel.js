@@ -28,6 +28,21 @@ const ticketSchema = mongoose.Schema({
         enum: ['new', 'open', 'closed', 'suspended'],
         default: 'new'
     },
+
+    feedback: {
+      rating: {
+        type: Number,
+        min: 1,
+        max: 5,
+      },
+      comment: {
+        type: String,
+      },
+      isSubmitted: {
+        type: Boolean,
+        default: false,
+      }
+    },
     priority: {
         type: String,
         enum: ['Mica', 'Medie', 'Mare'],

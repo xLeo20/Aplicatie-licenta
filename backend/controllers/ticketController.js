@@ -204,6 +204,41 @@ const closeTicket = asyncHandler(async (req, res) => {
     res.status(200).json(updatedTicket);
 });
 
+// @desc    Add feedback to ticket
+// @route   POST /api/tickets/:id/feedback
+// @access  Private
+const addFeedback = asyncHandler(async (req, res) => {
+  const { rating, comment } = req.body
+
+  const ticket = await Ticket.findById(req.params.id)
+
+  if (!ticket) {
+    res.status(404)
+    throw new Error('Ticket not found')
+  }
+
+  if (ticket.user.toString() !== req.user.id) {
+    res.status(401)
+    throw new Error('Not Authorized')
+  }
+
+  // Opțional: Permite feedback doar dacă tichetul e închis
+  if (ticket.status !== 'closed') {
+      res.status(400)
+      throw new Error('Puteți oferi feedback doar tichetelor închise.')
+  }
+
+  ticket.feedback = {
+    rating: Number(rating),
+    comment,
+    isSubmitted: true
+  }
+
+  await ticket.save()
+
+  res.status(200).json(ticket)
+});
+
 module.exports = {
   getTickets,
   createTicket,
@@ -212,5 +247,6 @@ module.exports = {
   updateTicket,
   assignTicket,
   suspendTicket,
-  closeTicket 
+  closeTicket,
+  addFeedback
 };

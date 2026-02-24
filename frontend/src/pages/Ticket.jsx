@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useSelector, useDispatch } from 'react-redux'
-import { getTicket, closeTicket, suspendTicket, assignTicket } from '../features/tickets/ticketSlice'
+import { getTicket, closeTicket, suspendTicket, assignTicket, addFeedback } from '../features/tickets/ticketSlice'
 import { getNotes, createNote } from '../features/notes/noteSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch } from 'react-icons/fa' 
+import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch, FaStar } from 'react-icons/fa' 
 import { Link } from 'react-router-dom'
 import Spinner from '../components/Spinner'
 import NoteItem from '../components/NoteItem'
@@ -23,6 +23,10 @@ function Ticket() {
   // State pentru vizualizarea unei imagini Full Screen
   const [fullScreenImage, setFullScreenImage] = useState(null)
 
+  // State pentru Feedback (NOU)
+  const [rating, setRating] = useState(5)
+  const [feedbackComment, setFeedbackComment] = useState('')
+
   const { ticket, isLoading, isError, message } = useSelector((state) => state.tickets)
   const { notes, isLoading: notesIsLoading } = useSelector((state) => state.notes)
   const { user } = useSelector((state) => state.auth)
@@ -31,7 +35,7 @@ function Ticket() {
   const dispatch = useDispatch()
   const { ticketId } = useParams()
 
-  // --- LOGICA TIMER MUTATĂ SUS (ÎNAINTE DE ORICE RETURN) ---
+  // --- LOGICA TIMER ---
   const calculateTimeRemaining = (deadline) => {
     if (!deadline) return null;
     const total = Date.parse(deadline) - Date.parse(new Date());
@@ -81,6 +85,13 @@ function Ticket() {
     toast.success('Tichet preluat cu succes!')
   }
 
+  // Submit pentru Feedback (NOU)
+  const onFeedbackSubmit = (e) => {
+    e.preventDefault()
+    dispatch(addFeedback({ ticketId, rating, comment: feedbackComment }))
+    toast.success('Feedback trimis!')
+  }
+
   const onNoteSubmit = async (e) => {
     e.preventDefault()
     if(!noteText.trim()) return;
@@ -109,7 +120,6 @@ function Ticket() {
     setModalIsOpen(false)
   }
 
-  // --- AICI SUNT RETURN-URILE TIMPURII (TOATE HOOKURILE TREBUIE SĂ FIE DEASUPRA LOR) ---
   if (isLoading || notesIsLoading) return <Spinner />
   if (isError) return <div className="text-white text-center py-20 text-2xl font-black">EROARE: {message}</div>
 
@@ -157,7 +167,7 @@ function Ticket() {
       {/* ZONA SLA-URI */}
       <div className="w-full max-w-5xl space-y-4 mb-8">
           
-          {/* 1. SLA PRELUARE (Response Time - 10 Min) -> Apare DOAR când tichetul e NOU */}
+          {/* SLA PRELUARE */}
           {ticket.status === 'new' && ticket.pickupDeadline && (
             <div className={`w-full backdrop-blur-xl border p-4 rounded-2xl flex justify-between items-center transition-all ${
               pickupTimeLeft?.expired 
@@ -179,7 +189,7 @@ function Ticket() {
             </div>
           )}
 
-          {/* 2. SLA REZOLVARE (Resolution Time - 24 Ore) */}
+          {/* SLA REZOLVARE */}
           {ticket.status !== 'closed' && (
             <div className="w-full bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] shadow-2xl ring-1 ring-white/10">
                 <SLACountdown deadline={ticket.deadline} createdAt={ticket.createdAt} status={ticket.status} />
@@ -218,7 +228,6 @@ function Ticket() {
                 <h3 className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest mb-4">Descriere Problemă</h3>
                 <p className="text-white text-lg leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
                 
-                {/* AFIȘARE POZĂ TICHET INLINE */}
                 {mainAttachmentUrl && (
                     <div className="mt-8 border-t border-white/5 pt-6">
                         <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2"><FaPaperclip /> Atașament Initial</p>
@@ -236,6 +245,65 @@ function Ticket() {
             </div>
         </div>
       </div>
+
+      {/* --- SECTIUNEA DE FEEDBACK (NOU) --- */}
+      {/* 1. Formular (apare dacă tichetul e închis și NU are feedback) */}
+      {ticket.status === 'closed' && !ticket.feedback?.isSubmitted && (
+        <div className="w-full max-w-5xl bg-gradient-to-br from-indigo-900/40 to-purple-900/40 backdrop-blur-xl border border-indigo-500/30 p-8 rounded-[2.5rem] shadow-[0_0_40px_rgba(79,70,229,0.15)] mb-8 animate-in slide-in-from-bottom-5">
+            <h3 className="text-2xl font-black text-white uppercase italic drop-shadow-lg mb-6 flex items-center gap-3">
+                <FaStar className="text-yellow-400" /> Evaluează Experiența
+            </h3>
+            <form onSubmit={onFeedbackSubmit}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div>
+                        <label className="text-blue-200/60 text-xs font-black uppercase tracking-widest mb-2 block">Notă Rezolvare</label>
+                        <select 
+                            value={rating} 
+                            onChange={(e) => setRating(e.target.value)}
+                            className="w-full bg-slate-950/60 border border-white/10 text-white rounded-xl p-4 focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                        >
+                            <option value="5">5 - Excelent ⭐⭐⭐⭐⭐</option>
+                            <option value="4">4 - Bun ⭐⭐⭐⭐</option>
+                            <option value="3">3 - Mediu ⭐⭐⭐</option>
+                            <option value="2">2 - Slab ⭐⭐</option>
+                            <option value="1">1 - Foarte Slab ⭐</option>
+                        </select>
+                    </div>
+                    <div className="md:col-span-2">
+                         <label className="text-blue-200/60 text-xs font-black uppercase tracking-widest mb-2 block">Comentariu (Opțional)</label>
+                         <input 
+                            type="text" 
+                            className="w-full bg-slate-950/60 border border-white/10 text-white rounded-xl p-4 focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-600"
+                            placeholder="Cum s-a descurcat agentul?"
+                            value={feedbackComment}
+                            onChange={(e) => setFeedbackComment(e.target.value)}
+                         />
+                    </div>
+                </div>
+                <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-xl shadow-lg transition-all uppercase tracking-widest text-sm">
+                    Trimite Recenzia
+                </button>
+            </form>
+        </div>
+      )}
+
+      {/* 2. Afisare Feedback Existent */}
+      {ticket.feedback?.isSubmitted && (
+        <div className="w-full max-w-5xl bg-slate-900/60 backdrop-blur-md border border-yellow-500/20 p-6 rounded-[2rem] mb-8 flex items-center gap-6 shadow-lg">
+            <div className="bg-yellow-500/20 p-4 rounded-full border border-yellow-500/30">
+                <FaStar className="text-3xl text-yellow-400" />
+            </div>
+            <div>
+                <p className="text-yellow-200/60 text-[10px] font-black uppercase tracking-widest">Feedback Utilizator</p>
+                <div className="flex items-center gap-3">
+                    <span className="text-2xl font-black text-white">{ticket.feedback.rating} / 5</span>
+                    <span className="text-slate-400 italic">"{ticket.feedback.comment || 'Fără comentariu'}"</span>
+                </div>
+            </div>
+        </div>
+      )}
+      {/* ----------------------------------- */}
+
 
       {/* BUTOANE ACȚIUNE */}
       <div className="w-full max-w-5xl flex flex-wrap gap-4 mb-10">
