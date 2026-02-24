@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const User = require('../models/userModel');
 const Ticket = require('../models/ticketModel');
 const Note = require('../models/noteModel');
+const sendEmail = require('../utils/sendEmail'); // <--- IMPORT NOU
 
 // @desc    Preia notele pentru un tichet
 // @route   GET /api/tickets/:ticketId/notes
@@ -21,7 +22,7 @@ const getNotes = asyncHandler(async (req, res) => {
     throw new Error('User neautorizat');
   }
 
-  // --- MODIFICARE: Folosim populate pentru a lua rolul autorului ---
+  // Folosim populate pentru a lua rolul autorului
   const notes = await Note.find({ ticket: req.params.ticketId })
                           .populate('user', 'name role');
 
@@ -48,7 +49,7 @@ const addNote = asyncHandler(async (req, res) => {
 
   const isStaffMember = user.role === 'agent' || user.role === 'admin';
 
-  // --- EXTRAGEM TEXTUL ȘI ATAȘAMENTUL DIN REQUEST ---
+  // EXTRAGEM TEXTUL ȘI ATAȘAMENTUL DIN REQUEST
   const { text, attachment } = req.body;
 
   const note = await Note.create({
@@ -57,13 +58,13 @@ const addNote = asyncHandler(async (req, res) => {
     staffId: isStaffMember ? user.id : null,
     ticket: req.params.ticketId,
     user: req.user.id,
-    attachment: attachment || null // <--- SALVĂM POZA AICI
+    attachment: attachment || null // SALVĂM POZA AICI
   });
 
-  // --- MODIFICARE: Populam nota nou creata inainte sa o trimitem inapoi ---
+  // Populam nota nou creata inainte sa o trimitem inapoi
   const populatedNote = await Note.findById(note._id).populate('user', 'name role');
 
-  // -------- NOU: EMITEM NOTIFICAREA PRIN SOCKET.IO --------
+  // -------- SOCKET.IO --------
   const io = req.app.get('io');
   if (io) {
     io.emit('notificare_noua', {
@@ -72,7 +73,37 @@ const addNote = asyncHandler(async (req, res) => {
       type: 'note'
     });
   }
-  // --------------------------------------------------------
+  // ---------------------------
+
+  // --- EMAIL NOTIFICARE RĂSPUNS STAFF ---
+  // Trimitem email doar dacă cel care scrie este agent/admin
+  if (isStaffMember) {
+    try {
+        const ticketOwner = await User.findById(ticket.user)
+        
+        const message = `
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h3>Ai primit un răspuns nou la tichetul #${ticket.ticketId || ticket._id}</h3>
+            <p><strong>Agentul ${user.name} a scris:</strong></p>
+            <blockquote style="background: #f9f9f9; border-left: 5px solid #ccc; padding: 10px; margin: 10px 0;">
+              ${text}
+            </blockquote>
+            <br/>
+            <a href="http://localhost:5173/ticket/${ticket._id}" style="color: blue;">Click aici pentru a răspunde în aplicație</a>
+          </div>
+        `
+
+        await sendEmail({
+          to: ticketOwner.email,
+          subject: `Răspuns nou la tichetul #${ticket.ticketId || ticket._id}`,
+          html: message,
+        })
+
+    } catch (error) {
+        console.log("Eroare trimitere email nota:", error);
+    }
+  }
+  // ---------------------------------------
 
   res.status(200).json(populatedNote);
 });
