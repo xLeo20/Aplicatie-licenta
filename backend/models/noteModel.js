@@ -22,7 +22,11 @@ const noteSchema = mongoose.Schema({
   staffId: {
     type: String // Optional, ID-ul agentului
   },
-  attachment: { type: String, default: null }
+  attachment: { type: String, default: null },
+  isSystem: {
+      type: Boolean,
+      default: false
+    }
 }, {
   timestamps: true
 });

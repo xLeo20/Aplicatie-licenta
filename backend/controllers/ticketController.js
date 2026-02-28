@@ -3,7 +3,7 @@ const asyncHandler = require('express-async-handler');
 const User = require('../models/userModel');
 const Ticket = require('../models/ticketModel');
 const Note = require('../models/noteModel');
-const sendEmail = require('../utils/sendEmail'); // <--- IMPORT NOU
+const sendEmail = require('../utils/sendEmail'); 
 
 
 // @desc    Preia tichetele
@@ -188,9 +188,19 @@ const assignTicket = asyncHandler(async (req, res) => {
     { new: true }
   );
 
+  // --- NOU: LOG DE SISTEM PENTRU PRELUARE ---
+  await Note.create({
+    text: `A preluat acest tichet. Statusul a devenit "În Lucru".`,
+    isStaff: true,
+    staffId: user.id,
+    ticket: req.params.id,
+    user: user.id,
+    isSystem: true // Marchează nota ca fiind acțiune de sistem
+  });
+  // ------------------------------------------
+
   // --- LOGICA EMAIL PRELUARE ---
   try {
-    // Căutăm clientul care a deschis tichetul pentru a-i lua adresa de email
     const clientUser = await User.findById(ticket.user);
 
     if (clientUser) {
@@ -244,6 +254,18 @@ const suspendTicket = asyncHandler(async (req, res) => {
         { status: 'suspended' }, 
         { new: true }
     );
+
+    // --- NOU: LOG DE SISTEM PENTRU SUSPENDARE ---
+    await Note.create({
+        text: `A schimbat statusul tichetului în "Suspendat".`,
+        isStaff: user.role === 'agent' || user.role === 'admin',
+        staffId: user.id,
+        ticket: req.params.id,
+        user: user.id,
+        isSystem: true 
+    });
+    // --------------------------------------------
+
     res.status(200).json(updatedTicket);
 });
 
@@ -252,6 +274,9 @@ const suspendTicket = asyncHandler(async (req, res) => {
 const closeTicket = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user.id);
     const ticket = await Ticket.findById(req.params.id);
+
+    // Preluăm textul soluției dacă a fost trimis de pe frontend
+    const { resolutionText } = req.body;
 
     if (!ticket) {
         res.status(404);
@@ -270,16 +295,36 @@ const closeTicket = asyncHandler(async (req, res) => {
         { new: true }
     );
 
+    // --- NOU: LOG DE SISTEM PENTRU ÎNCHIDERE ---
+    await Note.create({
+        text: resolutionText ? `Soluție / Rezolvare: ${resolutionText}` : `A închis acest tichet.`,
+        isStaff: user.role === 'agent' || user.role === 'admin',
+        staffId: user.id,
+        ticket: req.params.id,
+        user: user.id,
+        isSystem: true 
+    });
+    // -------------------------------------------
+
     // --- LOGICA EMAIL ÎNCHIDERE & FEEDBACK ---
     try {
-      // Identificăm clientul (poate fi userul curent sau altcineva dacă închide un admin)
       const ticketOwner = await User.findById(ticket.user);
 
       if (ticketOwner) {
+        // Construim partea de HTML pentru soluție doar dacă există text
+        const solutionHtml = resolutionText 
+          ? `<div style="background-color: #d4edda; border-left: 5px solid #28a745; padding: 15px; margin: 20px 0; color: #155724;">
+               <h3 style="margin-top:0;">Soluție / Rezolvare:</h3>
+               <p style="font-size: 16px; white-space: pre-wrap;">${resolutionText}</p>
+             </div>` 
+          : '';
+
         const message = `
           <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
             <h2 style="color: #333;">Salut ${ticketOwner.name},</h2>
             <p>Tichetul tău <strong>#${ticket.ticketId || ticket._id}</strong> a fost marcat ca <strong>REZOLVAT</strong>.</p>
+            
+            ${solutionHtml}
             
             <p>Sperăm că am reușit să te ajutăm! Te rugăm să ne acorzi 30 de secunde pentru a evalua interacțiunea.</p>
             
@@ -341,6 +386,81 @@ const addFeedback = asyncHandler(async (req, res) => {
   res.status(200).json(ticket)
 });
 
+// @desc    Preia toți agenții pentru escaladare
+// @route   GET /api/tickets/agents
+// @access  Private
+const getAgents = asyncHandler(async (req, res) => {
+    // Căutăm toți userii care au rolul de agent sau admin
+    const users = await User.find({ role: { $in: ['agent', 'admin'] } }).select('-password');
+    res.status(200).json(users);
+});
+
+// @desc    Escaladează tichetul către alt agent
+// @route   PUT /api/tickets/:id/escalate
+// @access  Private
+const escalateTicket = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    const ticket = await Ticket.findById(req.params.id);
+    const { targetAgentId, reason } = req.body;
+
+    if (!ticket) {
+        res.status(404);
+        throw new Error('Tichetul nu a fost găsit');
+    }
+
+    if (user.role !== 'agent' && user.role !== 'admin') {
+        res.status(401);
+        throw new Error('Doar staff-ul poate escalada tichete');
+    }
+
+    const targetAgent = await User.findById(targetAgentId);
+    if (!targetAgent) {
+        res.status(404);
+        throw new Error('Agentul selectat nu există');
+    }
+
+    // Actualizăm tichetul cu noul agent
+    const updatedTicket = await Ticket.findByIdAndUpdate(
+        req.params.id,
+        { assignedTo: targetAgentId, status: 'open' },
+        { new: true }
+    ).populate('assignedTo', 'name email');
+
+    // Salvăm acțiunea în Istoric (Audit Log)
+    await Note.create({
+        text: `A escaladat tichetul către ${targetAgent.name}. Motiv: ${reason || 'Nespecificat'}`,
+        isStaff: true,
+        staffId: user.id,
+        ticket: req.params.id,
+        user: user.id,
+        isSystem: true 
+    });
+
+    // Trimitem email noului agent pentru a-l notifica
+    try {
+        const message = `
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+                <h2 style="color: #0056b3;">Salut ${targetAgent.name},</h2>
+                <p>Un tichet a fost escaladat către tine de către colegul tău, <strong>${user.name}</strong>.</p>
+                <div style="background-color: #fff3cd; padding: 15px; border-left: 5px solid #ffc107; margin: 20px 0;">
+                    <p><strong>Motiv escaladare:</strong> ${reason || 'Nespecificat'}</p>
+                </div>
+                <br/>
+                <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Preia Tichetul</a>
+            </div>
+        `;
+        await sendEmail({
+            to: targetAgent.email,
+            subject: `⚠️ Tichet Escaladat: #${ticket.ticketId || ticket._id}`,
+            html: message,
+        });
+    } catch (error) {
+        console.log('Eroare trimitere email escaladare:', error);
+    }
+
+    res.status(200).json(updatedTicket);
+});
+
 module.exports = {
   getTickets,
   createTicket,
@@ -350,5 +470,7 @@ module.exports = {
   assignTicket,
   suspendTicket,
   closeTicket,
-  addFeedback
+  addFeedback,
+  getAgents,
+  escalateTicket
 };

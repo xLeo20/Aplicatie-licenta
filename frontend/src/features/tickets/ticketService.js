@@ -88,6 +88,14 @@ const addFeedback = async (ticketId, feedbackData, token) => {
   return response.data
 }
 
+const escalateTicket = async (ticketId, escalateData, token) => {
+  const config = {
+    headers: { Authorization: `Bearer ${token}` },
+  }
+  const response = await axios.put(API_URL + ticketId + '/escalate', escalateData, config)
+  return response.data
+}
+
 const ticketService = {
   createTicket,
   getTickets,
@@ -95,7 +103,8 @@ const ticketService = {
   closeTicket,
   assignTicket,
   suspendTicket, // <--- Exportam
-  addFeedback // <--- Exportam
+  addFeedback, // <--- Exportam
+  escalateTicket
 }
 
 export default ticketService

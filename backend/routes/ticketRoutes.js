@@ -11,7 +11,9 @@ const {
   updateTicket,
   assignTicket,
   suspendTicket, // <--- Importam functia noua
-  addFeedback
+  addFeedback,
+  getAgents,
+  escalateTicket
 } = require('../controllers/ticketController');
 
 // --- 1. Importam router-ul de note
@@ -33,6 +35,8 @@ const upload = multer({ storage });
 // --- 2. Redirecționăm orice cerere care se termina in /notes catre noteRouter
 router.use('/:ticketId/notes', noteRouter);
 
+
+
 // --- RUTA PENTRU UPLOAD FIȘIER ---
 // ATENȚIE: Trebuie să stea deasupra rutei router.route('/:id')
 router.post('/upload', protect, upload.single('attachment'), (req, res) => {
@@ -47,6 +51,9 @@ router.post('/upload', protect, upload.single('attachment'), (req, res) => {
 router.route('/')
   .get(protect, getTickets)
   .post(protect, createTicket);
+
+router.route('/agents').get(protect, getAgents)
+router.route('/:id/escalate').put(protect, escalateTicket)
 
 router.route('/:id')
   .get(protect, getTicket)

@@ -1,146 +1,265 @@
-import { useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
-import { getTickets, reset } from '../../features/tickets/ticketSlice'
-import Spinner from '../Spinner'
-import { FaTicketAlt, FaExclamationCircle, FaCheckCircle, FaPlus, FaHistory, FaChartBar, FaChartPie, FaUserShield } from 'react-icons/fa'
-import { Link } from 'react-router-dom'
-import { Pie, Bar } from 'react-chartjs-2'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js'
-
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement)
+import { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { Link } from 'react-router-dom';
+import { 
+    FaTicketAlt, FaExclamationCircle, FaCheckDouble, 
+    FaFolderOpen, FaChartPie, FaFireAlt, FaRegClock
+} from 'react-icons/fa';
+import { 
+    PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
+    CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+} from 'recharts';
+import { getTickets } from '../../features/tickets/ticketSlice';
+import Spinner from '../Spinner';
 
 function AgentDashboard() {
-  const { user } = useSelector((state) => state.auth)
-  const { tickets, isLoading, isSuccess } = useSelector((state) => state.tickets)
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
+  
+  // Am adăugat isLoading și isSuccess pentru a ști când se încarcă datele
+  const { tickets, isLoading, isSuccess } = useSelector((state) => state.tickets);
+  const { user } = useSelector((state) => state.auth);
 
+  // FETCH TICHETE LA ÎNCĂRCAREA PAGINII
   useEffect(() => {
-    // 1. Când intri pe pagină, forțăm preluarea datelor NOI din baza de date
-    dispatch(getTickets())
+    dispatch(getTickets());
+  }, [dispatch]);
 
-    // 2. Când pleci de pe pagină, curățăm memoria veche
-    return () => { 
-      dispatch(reset()) 
-    }
-  }, [dispatch]) // <--- SECRETUL: Doar "dispatch" aici! Așa se va rula de fiecare dată când intri pe pagină.
-
-  if (isLoading) return <Spinner />
-
-  // --- LOGICA STATISTICI ---
-  const totalTickets = tickets.length
-  const activeTickets = tickets.filter(t => t.status === 'new' || t.status === 'open').length
-  const resolvedTickets = tickets.filter(t => t.status === 'closed').length
-  const urgentTickets = tickets.filter(t => t.priority === 'Mare' && t.status !== 'closed')
-
-  // Grafic Status
-  const pieData = {
-    labels: ['Noi', 'În Lucru', 'Suspendate', 'Închise'],
-    datasets: [{
-      data: [
-        tickets.filter(t => t.status === 'new').length,
-        tickets.filter(t => t.status === 'open').length,
-        tickets.filter(t => t.status === 'suspended').length,
-        tickets.filter(t => t.status === 'closed').length
-      ],
-      backgroundColor: ['#3b82f6', '#6366f1', '#f59e0b', '#10b981'],
-      borderWidth: 0,
-    }]
+  // Dacă datele se încarcă, afișăm un spinner ca să nu arate 0 secunde
+  if (isLoading && !isSuccess) {
+      return <Spinner />;
   }
 
-  // Grafic Prioritate
-  const barData = {
-    labels: ['Mică', 'Medie', 'Mare'],
-    datasets: [{
-      label: 'Tichete',
-      data: [
-        tickets.filter(t => t.priority === 'Mica').length,
-        tickets.filter(t => t.priority === 'Medie').length,
-        tickets.filter(t => t.priority === 'Mare').length
-      ],
-      backgroundColor: '#3b82f6',
-      borderRadius: 8
-    }]
-  }
+  // --- 1. CALCULARE METRICI (KPIs) ---
+  const totalTickets = tickets.length;
+  const newTickets = tickets.filter(t => t.status === 'new').length;
+  const openTickets = tickets.filter(t => t.status === 'open').length;
+  const closedTickets = tickets.filter(t => t.status === 'closed').length;
+  
+  // Tichetele mele (asignate agentului logat)
+  // Ne asigurăm că id-ul se potrivește, fie că e obiect populat, fie string
+  const myTickets = tickets.filter(t => {
+      if (!t.assignedTo) return false;
+      const assignedId = typeof t.assignedTo === 'object' ? t.assignedTo._id : t.assignedTo;
+      return assignedId === user._id && t.status !== 'closed';
+  });
+
+  // SLA Depășit (Tichete active care au trecut de deadline)
+  const breachedSLA = tickets.filter(t => 
+      t.status !== 'closed' && t.deadline && new Date(t.deadline) < new Date()
+  ).length;
+
+  // --- 2. DATE PENTRU GRAFICE ---
+  // Date pentru Graficul Pie (Statusuri)
+  const statusData = [
+    { name: 'Noi', value: newTickets, color: '#10b981' }, // Verde
+    { name: 'În Lucru', value: openTickets, color: '#3b82f6' }, // Albastru
+    { name: 'Suspendate', value: tickets.filter(t => t.status === 'suspended').length, color: '#f59e0b' }, // Portocaliu
+    { name: 'Închise', value: closedTickets, color: '#ef4444' }, // Rosu
+  ].filter(item => item.value > 0); // Ascundem categoriile cu 0 tichete
+
+  // Date pentru Graficul Bar (Priorități)
+  const priorityData = [
+    { name: 'Critică (Mare)', Tichete: tickets.filter(t => t.priority === 'Mare').length },
+    { name: 'Medie', Tichete: tickets.filter(t => t.priority === 'Medie').length },
+    { name: 'Mică', Tichete: tickets.filter(t => t.priority === 'Mica' || !t.priority).length },
+  ];
+
+  // Componentă reutilizabilă pentru Card-urile de Statistici
+  const StatCard = ({ title, value, icon, color, subtitle }) => (
+    <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-lg relative overflow-hidden group hover:bg-slate-800/50 transition-all">
+        <div className={`absolute -right-6 -top-6 text-9xl opacity-5 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500 ${color}`}>
+            {icon}
+        </div>
+        <div className="relative z-10 flex items-center justify-between">
+            <div>
+                <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">{title}</p>
+                <h3 className="text-4xl font-black text-white">{value}</h3>
+                {subtitle && <p className={`text-xs mt-2 font-bold ${color}`}>{subtitle}</p>}
+            </div>
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner border border-white/5 bg-white/5 ${color}`}>
+                {icon}
+            </div>
+        </div>
+    </div>
+  );
 
   return (
-    <div className="w-full flex flex-col items-center animate-in fade-in duration-700">
+    <div className="w-full space-y-8 animate-in fade-in duration-500 pb-10">
       
-      {/* --- HEADER AGENT --- */}
-      <div className="w-full max-w-6xl flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-blue-600/20 text-blue-400 rounded-2xl flex items-center justify-center text-2xl border border-blue-500/30 shadow-[0_0_15px_rgba(37,99,235,0.3)]">
-            <FaUserShield />
-          </div>
+      {/* HEADER DASHBOARD */}
+      <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b border-white/10 pb-6">
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic drop-shadow-lg">
-              Command Center
-            </h1>
-            <p className="text-blue-200/50 text-xs font-bold tracking-widest uppercase mt-1">Nivel Acces: {user?.role}</p>
+              <h2 className="text-3xl font-black text-white uppercase italic drop-shadow-md">
+                  Performance Dashboard
+              </h2>
+              <p className="text-slate-400 text-sm mt-1">
+                  Bun venit, <span className="text-blue-400 font-bold">{user.name}</span>. Iată sumarul activității.
+              </p>
           </div>
-        </div>
-        <Link to="/new-ticket" className="bg-blue-600 hover:bg-blue-500 text-white font-black py-3 px-8 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 tracking-widest text-sm uppercase">
-          <FaPlus /> Crează Tichet
-        </Link>
+          <div className="flex gap-3">
+              <Link to="/tickets" className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold transition-all text-sm flex items-center gap-2 shadow-lg">
+                  <FaFolderOpen /> Vezi Toate Tichetele
+              </Link>
+          </div>
       </div>
 
-      {/* --- KPI CARDS --- */}
-      <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] flex items-center gap-5 shadow-2xl ring-1 ring-white/5 group hover:bg-white/10 transition-all">
-          <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-6 transition-transform"><FaTicketAlt /></div>
-          <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Total Tichete</p><h3 className="text-4xl font-black text-white">{totalTickets}</h3></div>
-        </div>
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] flex items-center gap-5 shadow-2xl ring-1 ring-white/5 group hover:bg-white/10 transition-all">
-          <div className="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-6 transition-transform"><FaExclamationCircle /></div>
-          <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Active (Noi + Lucru)</p><h3 className="text-4xl font-black text-white">{activeTickets}</h3></div>
-        </div>
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] flex items-center gap-5 shadow-2xl ring-1 ring-white/5 group hover:bg-white/10 transition-all">
-          <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center text-3xl group-hover:rotate-6 transition-transform"><FaCheckCircle /></div>
-          <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Rezolvate</p><h3 className="text-4xl font-black text-white">{resolvedTickets}</h3></div>
-        </div>
+      {/* METRICI (KPI CARDS) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard 
+              title="Tichete Atribuite Mie" 
+              value={myTickets.length} 
+              icon={<FaChartPie />} 
+              color="text-blue-400" 
+              subtitle="În lucru sau noi"
+          />
+          <StatCard 
+              title="Așteaptă Preluare" 
+              value={newTickets} 
+              icon={<FaTicketAlt />} 
+              color="text-emerald-400" 
+              subtitle="Tichete neasignate (Status: Nou)"
+          />
+          <StatCard 
+              title="SLA Depășit" 
+              value={breachedSLA} 
+              icon={<FaFireAlt />} 
+              color="text-red-500" 
+              subtitle="Tichete cu termen expirat!"
+          />
+          <StatCard 
+              title="Rata de Rezolvare" 
+              value={totalTickets > 0 ? `${Math.round((closedTickets / totalTickets) * 100)}%` : '0%'} 
+              icon={<FaCheckDouble />} 
+              color="text-purple-400" 
+              subtitle={`${closedTickets} din ${totalTickets} total`}
+          />
       </div>
 
-      {/* --- GRAFICE --- */}
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl">
-          <h3 className="text-gray-800 text-xl font-black uppercase italic tracking-tight mb-6 flex items-center gap-2"><FaChartPie className="text-blue-600" /> Status Tichete</h3>
-          <div className="h-[300px] flex justify-center"><Pie data={pieData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold' } } } } }} /></div>
-        </div>
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl">
-          <h3 className="text-gray-800 text-xl font-black uppercase italic tracking-tight mb-6 flex items-center gap-2"><FaChartBar className="text-indigo-600" /> Distribuție Prioritate</h3>
-          <div className="h-[300px]"><Bar data={barData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } } } }} /></div>
-        </div>
-      </div>
-
-      {/* --- URGENȚE --- */}
-      <div className="w-full max-w-6xl bg-red-500/5 backdrop-blur-xl border border-red-500/20 rounded-[2.5rem] p-8 mb-10">
-        <h3 className="text-2xl font-black text-white mb-6 flex items-center gap-3 uppercase italic"><FaExclamationCircle className="text-red-500 animate-pulse" /> Urgențe Active</h3>
-        {urgentTickets.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {urgentTickets.map(ticket => (
-              <div key={ticket._id} className="bg-white/90 p-5 rounded-2xl flex justify-between items-center hover:bg-white transition-all transform hover:scale-[1.02] shadow-lg">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-red-600 bg-red-100 px-2 py-0.5 rounded-md w-fit mb-1">URGENT</span>
-                  <span className="font-bold text-gray-800 text-lg">{ticket.product}</span>
-                </div>
-                <Link to={`/ticket/${ticket._id}`} className="bg-slate-900 text-white px-5 py-2 rounded-xl text-xs font-black hover:bg-blue-600 transition-colors">DETALII</Link>
+      {/* ZONA DE GRAFICE */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Grafic 1: Distribuția pe Statusuri */}
+          <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-6 rounded-[2rem] shadow-lg">
+              <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
+                  <FaChartPie className="text-blue-400" /> Distribuție pe Statusuri
+              </h3>
+              <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                          <Pie
+                              data={statusData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                              label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                              {statusData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                          </Pie>
+                          <Tooltip 
+                              contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '12px', color: '#fff' }} 
+                              itemStyle={{ color: '#fff' }}
+                          />
+                          <Legend verticalAlign="bottom" height={36}/>
+                      </PieChart>
+                  </ResponsiveContainer>
               </div>
-            ))}
           </div>
-        ) : (
-          <div className="text-center py-8 bg-white/5 rounded-3xl border border-white/5">
-             <p className="text-blue-100/60 text-lg italic">Nu există urgențe active. Totul este sub control! ✨</p>
+
+          {/* Grafic 2: Tichete pe Priorități */}
+          <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-6 rounded-[2rem] shadow-lg">
+              <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
+                  <FaExclamationCircle className="text-red-400" /> Tichete pe Priorități
+              </h3>
+              <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={priorityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                          <XAxis dataKey="name" stroke="#94a3b8" tick={{fontSize: 12}} />
+                          <YAxis stroke="#94a3b8" tick={{fontSize: 12}} allowDecimals={false} />
+                          <Tooltip 
+                              cursor={{fill: '#1e293b'}} 
+                              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff' }}
+                          />
+                          <Bar dataKey="Tichete" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={40} />
+                      </BarChart>
+                  </ResponsiveContainer>
+              </div>
           </div>
-        )}
+
       </div>
 
-      {/* --- ISTORIC --- */}
-      <Link to="/tickets" className="group flex items-center gap-3 bg-slate-900 text-white font-black py-5 px-12 rounded-2xl shadow-2xl hover:bg-black transition-all transform hover:scale-105 active:scale-95 uppercase tracking-widest text-sm">
-        <FaHistory className="group-hover:rotate-[-20deg] transition-transform" />
-        Vezi Toate Tichetele
-      </Link>
+      {/* LISTA RAPIDĂ: CEEA CE TREBUIE SĂ LUCREZE AGENTUL (MY WORK) */}
+      <div className="bg-slate-900/50 backdrop-blur-xl border border-blue-500/20 rounded-[2rem] p-6 lg:p-8 shadow-[0_0_30px_rgba(59,130,246,0.1)] mt-8">
+          <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-white flex items-center gap-3">
+                  <FaRegClock className="text-blue-400" /> Coada Mea de Lucru (My Work)
+              </h3>
+              <span className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/30">
+                  {myTickets.length} Active
+              </span>
+          </div>
+
+          {myTickets.length === 0 ? (
+              <div className="text-center py-10 bg-black/20 rounded-2xl border border-dashed border-white/10">
+                  <FaCheckDouble className="mx-auto text-4xl text-emerald-500 mb-3 opacity-50" />
+                  <p className="text-slate-400 italic">Nu ai niciun tichet activ în acest moment. Ești la zi!</p>
+              </div>
+          ) : (
+              <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                      <thead>
+                          <tr className="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
+                              <th className="p-3 font-bold">ID Tichet</th>
+                              <th className="p-3 font-bold">Produs / Subiect</th>
+                              <th className="p-3 font-bold">Prioritate</th>
+                              <th className="p-3 font-bold text-right">Acțiune</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          {myTickets.slice(0, 5).map(ticket => (
+                              <tr key={ticket._id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                                  <td className="p-3 font-mono text-sm text-blue-300">
+                                      #{ticket.ticketId || ticket._id.substring(ticket._id.length - 4)}
+                                  </td>
+                                  <td className="p-3 text-white font-medium truncate max-w-[200px]">
+                                      {ticket.product}
+                                  </td>
+                                  <td className="p-3">
+                                      <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${
+                                          ticket.priority === 'Mare' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 
+                                          ticket.priority === 'Medie' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 
+                                          'bg-slate-700/50 text-slate-300 border border-slate-600'
+                                      }`}>
+                                          {ticket.priority || 'Mică'}
+                                      </span>
+                                  </td>
+                                  <td className="p-3 text-right">
+                                      <Link to={`/ticket/${ticket._id}`} className="text-blue-400 hover:text-blue-300 font-bold text-sm bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg transition-colors inline-block">
+                                          Rezolvă
+                                      </Link>
+                                  </td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+                  {myTickets.length > 5 && (
+                      <div className="mt-4 text-center">
+                          <Link to="/tickets" className="text-slate-400 hover:text-white text-sm text-center italic transition-colors">
+                              + Vezi restul de {myTickets.length - 5} tichete
+                          </Link>
+                      </div>
+                  )}
+              </div>
+          )}
+      </div>
 
     </div>
   )
 }
 
-export default AgentDashboard
+export default AgentDashboard;

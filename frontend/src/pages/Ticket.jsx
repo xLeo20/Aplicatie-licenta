@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useSelector, useDispatch } from 'react-redux'
-import { getTicket, closeTicket, suspendTicket, assignTicket, addFeedback } from '../features/tickets/ticketSlice'
+// Am adăugat escalateTicket în importul Redux
+import { getTicket, closeTicket, suspendTicket, assignTicket, addFeedback, escalateTicket } from '../features/tickets/ticketSlice'
 import { getNotes, createNote } from '../features/notes/noteSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch, FaStar } from 'react-icons/fa' 
+// Am adăugat FaShare pentru iconița de escaladare
+import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch, FaStar, FaShare } from 'react-icons/fa' 
 import { Link } from 'react-router-dom'
 import Spinner from '../components/Spinner'
 import NoteItem from '../components/NoteItem'
@@ -23,9 +25,15 @@ function Ticket() {
   // State pentru vizualizarea unei imagini Full Screen
   const [fullScreenImage, setFullScreenImage] = useState(null)
 
-  // State pentru Feedback (NOU)
+  // State pentru Feedback
   const [rating, setRating] = useState(5)
   const [feedbackComment, setFeedbackComment] = useState('')
+
+  // State pentru Escaladare (NOU)
+  const [escalateModalOpen, setEscalateModalOpen] = useState(false)
+  const [agentsList, setAgentsList] = useState([])
+  const [selectedAgent, setSelectedAgent] = useState('')
+  const [escalateReason, setEscalateReason] = useState('')
 
   const { ticket, isLoading, isError, message } = useSelector((state) => state.tickets)
   const { notes, isLoading: notesIsLoading } = useSelector((state) => state.notes)
@@ -60,6 +68,23 @@ function Ticket() {
   }, [ticket]);
   // --------------------------------------------------------
 
+  // Fetch lista de agenti cand se deschide modalul de escaladare
+  useEffect(() => {
+    if (escalateModalOpen) {
+        const fetchAgents = async () => {
+            try {
+                const config = { headers: { Authorization: `Bearer ${user.token}` } }
+                const { data } = await axios.get('/api/tickets/agents', config)
+                // Excludem din listă agentul curent (nu te poți escalada ție)
+                setAgentsList(data.filter(a => a._id !== user._id))
+            } catch (error) {
+                toast.error('Eroare la preluarea agenților')
+            }
+        }
+        fetchAgents()
+    }
+  }, [escalateModalOpen, user])
+
   useEffect(() => {
     if (isError) { toast.error(message) }
     dispatch(getTicket(ticketId))
@@ -85,11 +110,21 @@ function Ticket() {
     toast.success('Tichet preluat cu succes!')
   }
 
-  // Submit pentru Feedback (NOU)
+  // Submit pentru Feedback 
   const onFeedbackSubmit = (e) => {
     e.preventDefault()
     dispatch(addFeedback({ ticketId, rating, comment: feedbackComment }))
     toast.success('Feedback trimis!')
+  }
+
+  // Submit pentru Escaladare (NOU)
+  const onEscalateSubmit = () => {
+      if (!selectedAgent) return toast.error('Trebuie să selectezi un agent!')
+      dispatch(escalateTicket({ ticketId, targetAgentId: selectedAgent, reason: escalateReason }))
+      toast.success('Tichetul a fost escaladat cu succes.')
+      setEscalateModalOpen(false)
+      setSelectedAgent('')
+      setEscalateReason('')
   }
 
   const onNoteSubmit = async (e) => {
@@ -307,19 +342,31 @@ function Ticket() {
 
       {/* BUTOANE ACȚIUNE */}
       <div className="w-full max-w-5xl flex flex-wrap gap-4 mb-10">
-        {user && user.role !== 'angajat' && ticket.status === 'new' && (
+        {/* Buton Preia (Agent) */}
+        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket.status === 'new' && (
             <button onClick={onTicketAssign} className="flex-1 min-w-[200px] bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaCheckCircle /> Preia Tichetul
             </button>
         )}
+        
+        {/* Buton Raspunde (Toata Lumea) */}
         {ticket.status !== 'closed' && (
             <button onClick={() => setModalIsOpen(true)} className="flex-1 min-w-[200px] bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm border border-white/5">
                 <FaPlus /> Răspunde (Notă)
             </button>
         )}
-        {ticket.status !== 'closed' && ticket.status !== 'suspended' && (
+        
+        {/* Buton Suspenda (Agent) */}
+        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket.status !== 'closed' && ticket.status !== 'suspended' && (
             <button onClick={onTicketSuspend} className="flex-1 min-w-[200px] bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaPause /> Suspendă
+            </button>
+        )}
+
+        {/* Buton Escaladare - Doar pentru agenți/admini pe tichete neînchise (NOU) */}
+        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket.status !== 'closed' && (
+            <button onClick={() => setEscalateModalOpen(true)} className="flex-1 min-w-[200px] bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
+                <FaShare /> Escaladează
             </button>
         )}
       </div>
@@ -401,6 +448,47 @@ function Ticket() {
                           {isUploadingNote ? 'Se trimite...' : 'Trimite Mesajul'}
                       </button>
                   </form>
+              </div>
+          </div>
+      )}
+
+      {/* --- MODAL ESCALADARE (NOU) --- */}
+      {escalateModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 animate-in zoom-in duration-200">
+              <div className="bg-slate-900 border border-purple-500/30 rounded-[2.5rem] p-10 max-w-lg w-full shadow-[0_0_50px_rgba(168,85,247,0.15)] relative">
+                  <button onClick={() => setEscalateModalOpen(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><FaTimes size={20}/></button>
+                  <FaShare size={40} className="text-purple-500 mx-auto mb-6" />
+                  <h2 className="text-2xl font-black text-white mb-2 uppercase text-center">Escaladează Tichetul</h2>
+                  <p className="text-slate-400 mb-6 text-sm text-center">Transferă responsabilitatea către un alt coleg.</p>
+                  
+                  <div className="space-y-4 mb-8">
+                      <div>
+                          <label className="text-blue-200/60 text-xs font-black uppercase tracking-widest mb-2 block">Către cine escaladezi?</label>
+                          <select 
+                              value={selectedAgent} 
+                              onChange={(e) => setSelectedAgent(e.target.value)}
+                              className="w-full bg-slate-950 border border-white/10 text-white rounded-xl p-4 focus:ring-2 focus:ring-purple-500 outline-none"
+                          >
+                              <option value="">-- Alege un agent --</option>
+                              {agentsList.map(agent => (
+                                  <option key={agent._id} value={agent._id}>{agent.name} ({agent.role})</option>
+                              ))}
+                          </select>
+                      </div>
+                      <div>
+                          <label className="text-blue-200/60 text-xs font-black uppercase tracking-widest mb-2 block">Motiv / Mesaj pentru agent</label>
+                          <textarea 
+                              value={escalateReason}
+                              onChange={(e) => setEscalateReason(e.target.value)}
+                              placeholder="Descrie de ce escaladezi acest tichet..."
+                              className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-purple-500 outline-none min-h-[100px]"
+                          ></textarea>
+                      </div>
+                  </div>
+
+                  <button onClick={onEscalateSubmit} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-4 rounded-xl transition-all uppercase text-xs tracking-widest shadow-lg">
+                      Confirmă Escaladarea
+                  </button>
               </div>
           </div>
       )}

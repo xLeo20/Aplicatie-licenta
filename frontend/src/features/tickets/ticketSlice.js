@@ -104,7 +104,22 @@ export const suspendTicket = createAsyncThunk(
   }
 )
 
-// --- Adauga Feedback (NOU) ---
+// --- Escaladeaza Tichet (NOU) ---
+export const escalateTicket = createAsyncThunk(
+  'tickets/escalate',
+  async ({ ticketId, targetAgentId, reason }, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token
+      // Apelam serviciul cu obiectul necesar
+      return await ticketService.escalateTicket(ticketId, { targetAgentId, reason }, token)
+    } catch (error) {
+       const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString()
+       return thunkAPI.rejectWithValue(message)
+    }
+  }
+)
+
+// --- Adauga Feedback ---
 export const addFeedback = createAsyncThunk(
   'tickets/addFeedback',
   async ({ ticketId, rating, comment }, thunkAPI) => {
@@ -188,11 +203,17 @@ export const ticketSlice = createSlice({
         state.isSuccess = true
         state.ticket = action.payload
       })
-      // --- Case Feedback (NOU) ---
+      // --- Case Escaladare (NOU) ---
+      .addCase(escalateTicket.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.isSuccess = true
+        state.ticket = action.payload 
+      })
+      // --- Case Feedback ---
       .addCase(addFeedback.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.ticket = action.payload; // Actualizăm tichetul cu datele de feedback
+        state.ticket = action.payload; 
       })
   },
 })

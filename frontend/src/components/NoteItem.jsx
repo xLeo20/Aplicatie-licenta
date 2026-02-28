@@ -1,66 +1,82 @@
 import { useSelector } from 'react-redux'
-import { FaUserCircle, FaUserShield, FaSearchPlus } from 'react-icons/fa'
+import { FaUserShield, FaUser, FaInfoCircle, FaSearchPlus } from 'react-icons/fa'
 
 function NoteItem({ note, onImageClick }) {
   const { user } = useSelector((state) => state.auth)
-  
-  // Verificăm dacă nota e scrisă de user-ul curent (pentru a o alinia la dreapta/stânga)
-  const isMine = note.user === user._id
 
-  // Construim URL-ul corect pentru imagine
-  const getAttachmentUrl = (path) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    const cleanPath = path.replace(/\\/g, '/');
-    const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
-    return `http://localhost:5000${finalPath}`;
-};
+  // -------------------------------------------------------------
+  // 1. RENDER PENTRU MESAJE DE SISTEM (AUDIT LOG / HISTORY)
+  // -------------------------------------------------------------
+  if (note.isSystem) {
+    return (
+      <div className="w-full flex justify-center my-6 animate-in fade-in duration-300">
+        <div className="bg-slate-800/60 border border-slate-700 backdrop-blur-md px-5 py-2 rounded-full flex items-center gap-3 shadow-inner">
+           <FaInfoCircle className="text-blue-400" />
+           <p className="text-slate-300 text-xs sm:text-sm font-medium">
+             <strong className="text-white">{note.user?.name}</strong> {note.text}
+           </p>
+           <span className="text-slate-500 text-xs ml-2 border-l border-slate-700 pl-3">
+             {new Date(note.createdAt).toLocaleString('ro-RO', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+           </span>
+        </div>
+      </div>
+    )
+  }
 
-const attachmentUrl = getAttachmentUrl(note.attachment);
+  // -------------------------------------------------------------
+  // 2. RENDER PENTRU MESAJE NORMALE (CHAT) - Acesta este codul tau existent modificat stilistic
+  // -------------------------------------------------------------
+  const isAgent = note.isStaff
+  const isCurrentUser = user && user._id === (note.user?._id || note.user)
 
   return (
-    <div className={`flex w-full mb-6 ${isMine ? 'justify-end' : 'justify-start'}`}>
-      
-      <div className={`flex max-w-[85%] md:max-w-[70%] gap-4 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={`flex w-full ${isAgent ? 'justify-start' : 'justify-end'} mb-6`}>
+      <div className={`flex flex-col max-w-[80%] ${isAgent ? 'items-start' : 'items-end'}`}>
         
-        {/* Avatar */}
-        <div className="flex-shrink-0 mt-1">
-          {note.isStaff ? (
-              <div className="w-10 h-10 rounded-full bg-blue-600/20 border border-blue-500/50 flex items-center justify-center text-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.3)]">
-                  <FaUserShield size={20} />
-              </div>
+        {/* Nume si Rol */}
+        <div className="flex items-center gap-2 mb-1 px-2">
+          {isAgent ? (
+            <>
+              <FaUserShield className="text-blue-400 text-xs" />
+              <span className="text-xs font-bold text-blue-300 uppercase tracking-wider">{note.user?.name || 'Agent'}</span>
+            </>
           ) : (
-              <div className="w-10 h-10 rounded-full bg-slate-700 border border-white/10 flex items-center justify-center text-white/50 shadow-inner">
-                  <FaUserCircle size={24} />
+            <>
+              <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">{note.user?.name || 'Client'}</span>
+              <FaUser className="text-emerald-400 text-xs" />
+            </>
+          )}
+        </div>
+
+        {/* Bula de chat */}
+        <div className={`p-4 rounded-2xl shadow-lg relative ${
+          isAgent 
+            ? 'bg-slate-800 border border-blue-500/20 text-white rounded-tl-none' 
+            : 'bg-blue-600 text-white rounded-tr-none'
+        }`}>
+          <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{note.text}</p>
+          
+          {/* Atasament (Daca exista) */}
+          {note.attachment && (
+              <div className="mt-4 border-t border-white/10 pt-3">
+                  <div 
+                      className="relative group cursor-pointer w-48 rounded-xl overflow-hidden shadow-md bg-black"
+                      onClick={() => onImageClick && onImageClick(`http://localhost:5000${note.attachment}`)}
+                  >
+                      <img src={`http://localhost:5000${note.attachment}`} alt="Atasament Notă" className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" />
+                      <div className="absolute inset-0 bg-blue-900/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <FaSearchPlus className="text-white text-2xl drop-shadow-md" />
+                      </div>
+                  </div>
               </div>
           )}
         </div>
 
-        {/* Bula de Chat */}
-        <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-            <span className="text-[10px] text-white/40 uppercase font-black tracking-widest mb-1 px-1">
-                {note.isStaff ? 'Echipa Suport' : 'Client'} • {new Date(note.createdAt).toLocaleString('ro-RO')}
-            </span>
-
-            <div className={`p-5 rounded-3xl backdrop-blur-md shadow-lg ${
-                note.isStaff 
-                ? 'bg-blue-600/20 border border-blue-500/30 text-blue-50 rounded-tl-sm' 
-                : 'bg-slate-800/60 border border-white/10 text-white rounded-tr-sm'
-            }`}>
-                <p className="whitespace-pre-wrap leading-relaxed">{note.text}</p>
-
-                {/* AFIȘARE POZĂ INLINE ÎN COMENTARIU */}
-                {attachmentUrl && (
-                    <div className="mt-4 relative group cursor-pointer rounded-xl overflow-hidden border border-white/10 w-64 max-w-full" onClick={() => onImageClick(attachmentUrl)}>
-                        <img src={attachmentUrl} alt="Note Attachment" className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <FaSearchPlus className="text-white text-3xl drop-shadow-lg" />
-                        </div>
-                    </div>
-                )}
-            </div>
+        {/* Data */}
+        <div className="text-[10px] text-slate-500 mt-1 px-2 font-medium">
+          {new Date(note.createdAt).toLocaleString('ro-RO')}
         </div>
-
+        
       </div>
     </div>
   )
