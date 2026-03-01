@@ -12,19 +12,37 @@ import {
 import { getTickets } from '../../features/tickets/ticketSlice';
 import Spinner from '../Spinner';
 
+// --- NOU: IMPORT SOCKET.IO ---
+import { io } from 'socket.io-client';
+const socket = io('http://localhost:5000');
+// -----------------------------
+
 function AgentDashboard() {
   const dispatch = useDispatch();
   
-  // Am adăugat isLoading și isSuccess pentru a ști când se încarcă datele
   const { tickets, isLoading, isSuccess } = useSelector((state) => state.tickets);
   const { user } = useSelector((state) => state.auth);
 
-  // FETCH TICHETE LA ÎNCĂRCAREA PAGINII
+  // FETCH TICHETE LA ÎNCĂRCAREA PAGINII + ASCULTARE SOCKETS
   useEffect(() => {
     dispatch(getTickets());
+
+    // --- NOU: ASCULTĂM SCHIMBĂRILE ÎN TIMP REAL ---
+    socket.on('tichet_nou_creat', () => {
+        dispatch(getTickets()); // Refresh cand intra un tichet nou
+    });
+
+    socket.on('ticketUpdated', () => {
+        dispatch(getTickets()); // Refresh cand se inchide/preia/sterge un tichet
+    });
+
+    return () => {
+        socket.off('tichet_nou_creat');
+        socket.off('ticketUpdated');
+    };
+    // ----------------------------------------------
   }, [dispatch]);
 
-  // Dacă datele se încarcă, afișăm un spinner ca să nu arate 0 secunde
   if (isLoading && !isSuccess) {
       return <Spinner />;
   }
@@ -35,36 +53,30 @@ function AgentDashboard() {
   const openTickets = tickets.filter(t => t.status === 'open').length;
   const closedTickets = tickets.filter(t => t.status === 'closed').length;
   
-  // Tichetele mele (asignate agentului logat)
-  // Ne asigurăm că id-ul se potrivește, fie că e obiect populat, fie string
   const myTickets = tickets.filter(t => {
       if (!t.assignedTo) return false;
       const assignedId = typeof t.assignedTo === 'object' ? t.assignedTo._id : t.assignedTo;
       return assignedId === user._id && t.status !== 'closed';
   });
 
-  // SLA Depășit (Tichete active care au trecut de deadline)
   const breachedSLA = tickets.filter(t => 
       t.status !== 'closed' && t.deadline && new Date(t.deadline) < new Date()
   ).length;
 
   // --- 2. DATE PENTRU GRAFICE ---
-  // Date pentru Graficul Pie (Statusuri)
   const statusData = [
-    { name: 'Noi', value: newTickets, color: '#10b981' }, // Verde
-    { name: 'În Lucru', value: openTickets, color: '#3b82f6' }, // Albastru
-    { name: 'Suspendate', value: tickets.filter(t => t.status === 'suspended').length, color: '#f59e0b' }, // Portocaliu
-    { name: 'Închise', value: closedTickets, color: '#ef4444' }, // Rosu
-  ].filter(item => item.value > 0); // Ascundem categoriile cu 0 tichete
+    { name: 'Noi', value: newTickets, color: '#10b981' }, 
+    { name: 'În Lucru', value: openTickets, color: '#3b82f6' }, 
+    { name: 'Suspendate', value: tickets.filter(t => t.status === 'suspended').length, color: '#f59e0b' }, 
+    { name: 'Închise', value: closedTickets, color: '#ef4444' }, 
+  ].filter(item => item.value > 0); 
 
-  // Date pentru Graficul Bar (Priorități)
   const priorityData = [
     { name: 'Critică (Mare)', Tichete: tickets.filter(t => t.priority === 'Mare').length },
     { name: 'Medie', Tichete: tickets.filter(t => t.priority === 'Medie').length },
     { name: 'Mică', Tichete: tickets.filter(t => t.priority === 'Mica' || !t.priority).length },
   ];
 
-  // Componentă reutilizabilă pentru Card-urile de Statistici
   const StatCard = ({ title, value, icon, color, subtitle }) => (
     <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-lg relative overflow-hidden group hover:bg-slate-800/50 transition-all">
         <div className={`absolute -right-6 -top-6 text-9xl opacity-5 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500 ${color}`}>
@@ -138,7 +150,6 @@ function AgentDashboard() {
       {/* ZONA DE GRAFICE */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* Grafic 1: Distribuția pe Statusuri */}
           <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-6 rounded-[2rem] shadow-lg">
               <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
                   <FaChartPie className="text-blue-400" /> Distribuție pe Statusuri
@@ -170,7 +181,6 @@ function AgentDashboard() {
               </div>
           </div>
 
-          {/* Grafic 2: Tichete pe Priorități */}
           <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-6 rounded-[2rem] shadow-lg">
               <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
                   <FaExclamationCircle className="text-red-400" /> Tichete pe Priorități

@@ -5,6 +5,11 @@ import { toast } from 'react-toastify'
 import { FaBook, FaPlus, FaTrash, FaChevronDown, FaChevronUp, FaTimes, FaTags, FaSearch } from 'react-icons/fa'
 import Spinner from '../components/Spinner'
 
+// --- NOU: IMPORT PENTRU SOCKET.IO ---
+import { io } from 'socket.io-client';
+const socket = io('http://localhost:5000'); 
+// ------------------------------------
+
 function KnowledgeBase() {
   const { user } = useSelector((state) => state.auth)
 
@@ -27,11 +32,6 @@ function KnowledgeBase() {
   })
   const { question, answer, category } = formData
 
-  // Preluăm FAQ-urile la încărcarea paginii
-  useEffect(() => {
-    fetchFaqs()
-  }, [])
-
   const fetchFaqs = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } }
@@ -44,14 +44,29 @@ function KnowledgeBase() {
     }
   }
 
+  // Preluăm FAQ-urile la încărcarea paginii
+  useEffect(() => {
+    fetchFaqs()
+
+    // --- NOU: ASCULTĂM SCHIMBĂRILE ÎN TIMP REAL PENTRU FAQ ---
+    socket.on('faqChanged', () => {
+        fetchFaqs(); // Re-apelăm API-ul automat când cineva modifică baza de cunoștințe
+    });
+
+    return () => {
+        socket.off('faqChanged');
+    };
+    // ---------------------------------------------------------
+  }, [user.token])
+
   // Funcție Adăugare FAQ (Doar Admin/Agent)
   const onSubmit = async (e) => {
     e.preventDefault()
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } }
-      const { data } = await axios.post('/api/faqs', formData, config)
+      await axios.post('/api/faqs', formData, config)
       
-      setFaqs([data, ...faqs]) // Adăugăm instant în listă
+      // Nu mai facem setFaqs manual, se va ocupa socketul de refresh automat!
       setIsModalOpen(false)
       setFormData({ question: '', answer: '', category: 'IT' })
       toast.success('Articolul a fost adăugat!')
@@ -67,8 +82,8 @@ function KnowledgeBase() {
         const config = { headers: { Authorization: `Bearer ${user.token}` } }
         await axios.delete(`/api/faqs/${id}`, config)
         
-        setFaqs(faqs.filter((faq) => faq._id !== id))
         toast.success('Articol șters!')
+        // Tabela se va reactualiza din socket
       } catch (error) {
         toast.error('Eroare la ștergere')
       }

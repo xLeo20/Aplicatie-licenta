@@ -7,11 +7,9 @@ import TicketItem from '../components/TicketItem'
 import { FaSearch, FaFilter, FaFilePdf, FaTicketAlt } from 'react-icons/fa'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-
-// --- NOU: IMPORT SOCKET.IO ---
 import { io } from 'socket.io-client'
+
 const socket = io('http://localhost:5000')
-// -----------------------------
 
 function Tickets() {
   const { tickets, isLoading, isSuccess } = useSelector((state) => state.tickets)
@@ -27,24 +25,27 @@ function Tickets() {
     }
   }, [dispatch])
 
-  // --- NOU: EFECTUL DE ASCULTARE SOCKET.IO ---
   useEffect(() => {
-    // Stăm la pândă: Dacă pe server s-a creat un tichet nou, noi facem automat un refresh invizibil la listă
     socket.on('tichet_nou_creat', () => {
-      // Reapelăm tichetele din baza de date fără ca userul să simtă
       dispatch(getTickets())
-    })
-
-    // Curățăm ascultătorul la ieșirea de pe pagină
+    });
+    socket.on('ticketUpdated', () => {
+      dispatch(getTickets())
+    });
     return () => {
-      socket.off('tichet_nou_creat')
-    }
-  }, [dispatch])
-  // -------------------------------------------
+      socket.off('tichet_nou_creat');
+      socket.off('ticketUpdated');
+    };
+  }, [dispatch]);
 
+  // MODIFICAT: Caută prin noile câmpuri (category și issueType)
   const filteredTickets = tickets.filter(ticket => {
-    const matchesSearch = ticket.product.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (ticket.ticketId && ticket.ticketId.toString().includes(searchTerm))
+    const searchString = searchTerm.toLowerCase()
+    const matchesSearch = 
+        (ticket.category && ticket.category.toLowerCase().includes(searchString)) || 
+        (ticket.issueType && ticket.issueType.toLowerCase().includes(searchString)) || 
+        (ticket.ticketId && ticket.ticketId.toString().includes(searchString))
+
     const matchesStatus = filterStatus === 'Toate Statusurile' || ticket.status === filterStatus
     return matchesSearch && matchesStatus
   })
@@ -55,38 +56,35 @@ function Tickets() {
 
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, 40, 'F');
-
     doc.setFontSize(22);
     doc.setTextColor(255, 255, 255);
-    doc.text("Sistem Ticketing", 14, 20);
+    doc.text("Sistem Ticketing ITIL", 14, 20); // Schimbat titlul
     
     doc.setFontSize(10);
     doc.setTextColor(96, 165, 250);
-    doc.text("Raport Oficial de Activitate", 14, 28);
+    doc.text("Raport de Incidente si Cereri", 14, 28);
 
     const date = new Date().toLocaleString('ro-RO');
     doc.setFontSize(10);
     doc.setTextColor(200, 200, 200);
     doc.text(`Generat: ${date}`, pageWidth - 15, 20, { align: 'right' });
-    doc.text(`User: Admin`, pageWidth - 15, 28, { align: 'right' });
-
+    
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(12);
     doc.text(`Total Tichete in lista: ${filteredTickets.length}`, 14, 50);
-    
-    doc.setDrawColor(200, 200, 200);
     doc.line(14, 55, pageWidth - 14, 55);
 
-    const tableColumn = ["ID", "Subiect / Produs", "Prioritate", "Status", "Data"];
+    // MODIFICAT: Tabelul PDF afișează Tipul și Categoria
+    const tableColumn = ["ID", "Tip Solicitare", "Categorie", "Prioritate", "Status"];
     const tableRows = [];
 
     filteredTickets.forEach(ticket => {
       const ticketData = [
-        ticket.ticketId || ticket._id.substring(ticket._id.length - 4),
-        ticket.product,
+        ticket.ticketId || '...',
+        ticket.issueType || 'N/A',
+        ticket.category || 'N/A',
         ticket.priority || 'N/A',
-        ticket.status.toUpperCase(),
-        new Date(ticket.createdAt).toLocaleDateString('ro-RO')
+        ticket.status.toUpperCase()
       ]
       tableRows.push(ticketData);
     });
@@ -96,35 +94,11 @@ function Tickets() {
         body: tableRows,
         startY: 65,
         theme: 'grid',
-        styles: {
-            fontSize: 9,
-            cellPadding: 3,
-            valign: 'middle',
-            halign: 'center'  
-        },
-        headStyles: {
-            fillColor: [59, 130, 246],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            halign: 'center'
-        },
-        columnStyles: {
-            0: { fontStyle: 'bold', cellWidth: 20 },
-            1: { cellWidth: 'auto' },
-            3: { fontStyle: 'bold' } 
-        },
-        alternateRowStyles: {
-            fillColor: [240, 249, 255]
-        },
-        didDrawPage: function (data) {
-            const pageCount = doc.internal.getNumberOfPages();
-            doc.setFontSize(8);
-            doc.setTextColor(150, 150, 150);
-            doc.text(`Pagina ${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-        }
+        styles: { fontSize: 9, cellPadding: 3, valign: 'middle', halign: 'center' },
+        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' }
     });
 
-    doc.save(`Raport_Helpdesk_${new Date().toISOString().slice(0,10)}.pdf`)
+    doc.save(`Raport_ITSM_${new Date().toISOString().slice(0,10)}.pdf`)
   }
 
   if (isLoading) return <Spinner />
@@ -140,10 +114,7 @@ function Tickets() {
           </h1>
         </div>
         
-        <button 
-            onClick={exportPDF}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white font-black py-3 px-8 rounded-2xl shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all transform hover:scale-105 active:scale-95 text-sm uppercase tracking-widest"
-        >
+        <button onClick={exportPDF} className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white font-black py-3 px-8 rounded-2xl shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all transform hover:scale-105 active:scale-95 text-sm uppercase tracking-widest">
           <FaFilePdf /> EXPORT PDF
         </button>
       </div>
@@ -155,7 +126,7 @@ function Tickets() {
             <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 group-focus-within:scale-110 transition-transform" />
             <input 
               type="text"
-              placeholder="Caută după produs sau ID..."
+              placeholder="Caută după Tip, Categorie sau ID..."
               className="w-full bg-slate-950/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-blue-200/20 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -169,11 +140,11 @@ function Tickets() {
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
-              <option value="Toate Statusurile" className="bg-slate-900 text-white font-bold">Toate Statusurile</option>
-              <option value="new" className="bg-slate-900 text-white font-bold text-emerald-400">Noi</option>
-              <option value="open" className="bg-slate-900 text-white font-bold text-blue-400">În Lucru</option>
-              <option value="suspended" className="bg-slate-900 text-white font-bold text-amber-400">Suspendate</option>
-              <option value="closed" className="bg-slate-900 text-white font-bold text-red-400">Închise</option>
+              <option value="Toate Statusurile" className="bg-slate-900">Toate Statusurile</option>
+              <option value="new" className="bg-slate-900">Noi</option>
+              <option value="open" className="bg-slate-900">În Lucru</option>
+              <option value="suspended" className="bg-slate-900">Suspendate</option>
+              <option value="closed" className="bg-slate-900">Închise</option>
             </select>
           </div>
 
@@ -186,7 +157,7 @@ function Tickets() {
       <div className="w-full max-w-6xl space-y-4">
         <div className="hidden md:grid grid-cols-5 gap-4 px-8 py-4 text-blue-200/40 font-black uppercase text-[10px] tracking-[0.2em] border-b border-white/5 mb-2">
           <div className="text-left">Dată / ID</div>
-          <div className="text-left">Produs</div>
+          <div className="text-left">Tip / Categorie</div>
           <div className="text-center">Prioritate / SLA</div>
           <div className="text-center">Status</div>
           <div className="text-right">Acțiune</div>

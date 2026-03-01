@@ -2,10 +2,15 @@ import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { getTickets, reset } from '../features/tickets/ticketSlice';
 import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css'; // Importăm stilurile de bază, apoi le suprascriem
+import 'react-calendar/dist/Calendar.css'; 
 import Spinner from '../components/Spinner';
 import TicketItem from '../components/TicketItem';
-import { FaCalendarAlt, FaClock, FaCheckCircle } from 'react-icons/fa';
+import { FaCalendarAlt, FaCheckCircle } from 'react-icons/fa';
+
+// --- NOU: IMPORT SOCKET.IO ---
+import { io } from 'socket.io-client';
+const socket = io('http://localhost:5000');
+// -----------------------------
 
 function TicketCalendar() {
   const { tickets, isLoading, isSuccess } = useSelector((state) => state.tickets);
@@ -14,14 +19,28 @@ function TicketCalendar() {
   const [date, setDate] = useState(new Date());
   const [selectedTickets, setSelectedTickets] = useState([]);
 
+  // FETCH INIȚIAL + ASCULTARE SOCKETS PENTRU ACTUALIZARE
   useEffect(() => {
     dispatch(getTickets());
+
+    // --- NOU: ASCULTARE SCHIMBĂRI TICHETE ---
+    socket.on('tichet_nou_creat', () => {
+        dispatch(getTickets());
+    });
+
+    socket.on('ticketUpdated', () => {
+        dispatch(getTickets());
+    });
+
     return () => {
       if (isSuccess) dispatch(reset());
+      socket.off('tichet_nou_creat');
+      socket.off('ticketUpdated');
     };
+    // ----------------------------------------
   }, [dispatch, isSuccess]);
 
-  // Filtrare tichete la schimbarea datei
+  // Filtrare tichete la schimbarea datei sau la actualizarea listei (din socket)
   useEffect(() => {
     if (tickets) {
         const filtered = tickets.filter(ticket => {
@@ -80,7 +99,6 @@ function TicketCalendar() {
         
         {/* --- ZONA CALENDAR (Left) --- */}
         <div className="flex-1 bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-            {/* Element decorativ fundal */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
             
             <div className="calendar-wrapper">
@@ -116,7 +134,6 @@ function TicketCalendar() {
             <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
                 {selectedTickets.length > 0 ? (
                     selectedTickets.map(ticket => (
-                        // Folosim TicketItem existent, dar într-un container care îi ajustează lățimea
                         <div key={ticket._id} className="scale-95 origin-left w-full">
                             <TicketItem ticket={ticket} />
                         </div>
@@ -133,9 +150,8 @@ function TicketCalendar() {
 
       </div>
       
-      {/* --- STILIZARE CSS CUSTOM PENTRU REACT-CALENDAR --- */}
+      {/* CSS CALENDAR CUSTOM */}
       <style>{`
-        /* Container general */
         .calendar-wrapper .react-calendar {
             width: 100%;
             background: transparent;
@@ -143,7 +159,6 @@ function TicketCalendar() {
             font-family: 'Poppins', sans-serif;
         }
         
-        /* Navigare (Luna/An) */
         .calendar-wrapper .react-calendar__navigation button {
             color: white;
             font-size: 1.2rem;
@@ -160,9 +175,8 @@ function TicketCalendar() {
             opacity: 0.5;
         }
 
-        /* Zilele Săptămânii (Luni, Mar...) */
         .calendar-wrapper .react-calendar__month-view__weekdays__weekday {
-            color: #60a5fa; /* Blue-400 */
+            color: #60a5fa; 
             text-transform: uppercase;
             font-size: 0.75rem;
             font-weight: 900;
@@ -173,7 +187,6 @@ function TicketCalendar() {
             text-decoration: none;
         }
 
-        /* Celulele calendarului (Zilele) */
         .calendar-wrapper .react-calendar__tile {
             height: 90px;
             display: flex;
@@ -189,35 +202,30 @@ function TicketCalendar() {
             border: 1px solid transparent;
         }
 
-        /* Hover pe zile */
         .calendar-wrapper .react-calendar__tile:enabled:hover,
         .calendar-wrapper .react-calendar__tile:enabled:focus {
             background: rgba(255, 255, 255, 0.05);
             border-color: rgba(255, 255, 255, 0.1);
         }
 
-        /* Ziua curentă (Azi) */
         .calendar-wrapper .react-calendar__tile--now {
-            background: rgba(59, 130, 246, 0.2) !important; /* Blue tint */
+            background: rgba(59, 130, 246, 0.2) !important; 
             border: 1px solid rgba(59, 130, 246, 0.5);
             color: #60a5fa;
         }
 
-        /* Ziua selectată */
         .calendar-wrapper .react-calendar__tile--active {
-            background: #2563eb !important; /* Blue-600 */
+            background: #2563eb !important; 
             color: white !important;
             box-shadow: 0 0 20px rgba(37, 99, 235, 0.5);
             border: none;
             transform: scale(1.05);
         }
 
-        /* Zile din luna vecină */
         .calendar-wrapper .react-calendar__month-view__days__day--neighboringMonth {
             color: rgba(255,255,255,0.2) !important;
         }
 
-        /* Scrollbar custom pentru lista */
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
         }

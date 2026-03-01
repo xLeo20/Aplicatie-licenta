@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useSelector, useDispatch } from 'react-redux'
-// Am adăugat escalateTicket în importul Redux
 import { getTicket, closeTicket, suspendTicket, assignTicket, addFeedback, escalateTicket } from '../features/tickets/ticketSlice'
 import { getNotes, createNote } from '../features/notes/noteSlice'
 import { useParams, useNavigate } from 'react-router-dom'
-// Am adăugat FaShare pentru iconița de escaladare
-import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch, FaStar, FaShare } from 'react-icons/fa' 
+import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch, FaStar, FaShare, FaBug, FaLayerGroup } from 'react-icons/fa' 
 import { Link } from 'react-router-dom'
 import Spinner from '../components/Spinner'
 import NoteItem from '../components/NoteItem'
 import SLACountdown from '../components/SLACountdown'
 import axios from 'axios'
+
+// --- NOU: IMPORT SOCKET.IO ---
+import { io } from 'socket.io-client';
+const socket = io('http://localhost:5000');
+// -----------------------------
 
 function Ticket() {
   const [modalIsOpen, setModalIsOpen] = useState(false)
@@ -29,7 +32,7 @@ function Ticket() {
   const [rating, setRating] = useState(5)
   const [feedbackComment, setFeedbackComment] = useState('')
 
-  // State pentru Escaladare (NOU)
+  // State pentru Escaladare
   const [escalateModalOpen, setEscalateModalOpen] = useState(false)
   const [agentsList, setAgentsList] = useState([])
   const [selectedAgent, setSelectedAgent] = useState('')
@@ -54,12 +57,11 @@ function Ticket() {
     return { expired: false, text: `${minutes}m ${seconds}s` };
   };
 
-  const [pickupTimeLeft, setPickupTimeLeft] = useState(
-    ticket?.pickupDeadline ? calculateTimeRemaining(ticket.pickupDeadline) : null
-  );
+  const [pickupTimeLeft, setPickupTimeLeft] = useState(null);
 
   useEffect(() => {
     if (ticket?.pickupDeadline && ticket.status === 'new') {
+      setPickupTimeLeft(calculateTimeRemaining(ticket.pickupDeadline));
       const interval = setInterval(() => {
         setPickupTimeLeft(calculateTimeRemaining(ticket.pickupDeadline));
       }, 1000);
@@ -85,11 +87,33 @@ function Ticket() {
     }
   }, [escalateModalOpen, user])
 
+  // --- LOGICA DE SOCKET.IO PENTRU CHAT SI REFRESH VIZUAL ---
   useEffect(() => {
     if (isError) { toast.error(message) }
+    
     dispatch(getTicket(ticketId))
     dispatch(getNotes(ticketId))
+
+    // 1. Ascultăm note noi adăugate la ACEST tichet
+    socket.on('noteAdded', (newNote) => {
+      if (newNote && newNote.ticket === ticketId) {
+         dispatch(getNotes(ticketId));
+      }
+    });
+
+    // 2. Ascultăm orice modificare (Închidere, Preluare, Suspendare, Feedback)
+    socket.on('ticketUpdated', (updatedTicket) => {
+      if (!updatedTicket || updatedTicket._id === ticketId || updatedTicket === ticketId) {
+         dispatch(getTicket(ticketId));
+      }
+    });
+
+    return () => {
+      socket.off('noteAdded');
+      socket.off('ticketUpdated');
+    };
   }, [isError, message, ticketId, dispatch])
+  // --------------------------------------------------------------
 
   const confirmClose = () => {
     dispatch(closeTicket(ticketId))
@@ -117,7 +141,7 @@ function Ticket() {
     toast.success('Feedback trimis!')
   }
 
-  // Submit pentru Escaladare (NOU)
+  // Submit pentru Escaladare
   const onEscalateSubmit = () => {
       if (!selectedAgent) return toast.error('Trebuie să selectezi un agent!')
       dispatch(escalateTicket({ ticketId, targetAgentId: selectedAgent, reason: escalateReason }))
@@ -196,14 +220,14 @@ function Ticket() {
             </Link>
             <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic drop-shadow-lg">Tichet {displayId}</h1>
         </div>
-        {getStatusBadge(ticket.status)}
+        {ticket && ticket.status && getStatusBadge(ticket.status)}
       </div>
 
       {/* ZONA SLA-URI */}
       <div className="w-full max-w-5xl space-y-4 mb-8">
           
           {/* SLA PRELUARE */}
-          {ticket.status === 'new' && ticket.pickupDeadline && (
+          {ticket?.status === 'new' && ticket?.pickupDeadline && (
             <div className={`w-full backdrop-blur-xl border p-4 rounded-2xl flex justify-between items-center transition-all ${
               pickupTimeLeft?.expired 
                 ? 'bg-red-500/10 border-red-500/30 ring-1 ring-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]' 
@@ -225,7 +249,7 @@ function Ticket() {
           )}
 
           {/* SLA REZOLVARE */}
-          {ticket.status !== 'closed' && (
+          {ticket?.status !== 'closed' && ticket && (
             <div className="w-full bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] shadow-2xl ring-1 ring-white/10">
                 <SLACountdown deadline={ticket.deadline} createdAt={ticket.createdAt} status={ticket.status} />
             </div>
@@ -233,18 +257,19 @@ function Ticket() {
       </div>
 
       {/* DETALII TICHET */}
+      {ticket && (
       <div className="w-full max-w-5xl bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden mb-8 ring-1 ring-white/5">
         <div className="p-8 md:p-12">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
                 <div className="space-y-6">
                     <div className="flex items-center gap-4 group">
-                        <div className="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform"><FaBoxOpen /></div>
-                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Produs</p><h3 className="text-xl font-bold text-white">{ticket.product}</h3></div>
+                        <div className="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform"><FaBug /></div>
+                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Tip Solicitare</p><h3 className="text-xl font-bold text-white">{ticket.issueType || 'N/A'}</h3></div>
                     </div>
                     <div className="flex items-center gap-4 group">
-                        <div className="w-12 h-12 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform"><FaCalendarAlt /></div>
-                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Creat la</p><h3 className="text-xl font-bold text-white">{new Date(ticket.createdAt).toLocaleString('ro-RO')}</h3></div>
+                        <div className="w-12 h-12 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform"><FaLayerGroup /></div>
+                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Categorie</p><h3 className="text-xl font-bold text-white">{ticket.category || 'N/A'}</h3></div>
                     </div>
                 </div>
                 <div className="space-y-6">
@@ -280,10 +305,10 @@ function Ticket() {
             </div>
         </div>
       </div>
+      )}
 
-      {/* --- SECTIUNEA DE FEEDBACK (NOU) --- */}
-      {/* 1. Formular (apare dacă tichetul e închis și NU are feedback) */}
-      {ticket.status === 'closed' && !ticket.feedback?.isSubmitted && (
+      {/* --- SECTIUNEA DE FEEDBACK --- */}
+      {ticket?.status === 'closed' && !ticket?.feedback?.isSubmitted && (
         <div className="w-full max-w-5xl bg-gradient-to-br from-indigo-900/40 to-purple-900/40 backdrop-blur-xl border border-indigo-500/30 p-8 rounded-[2.5rem] shadow-[0_0_40px_rgba(79,70,229,0.15)] mb-8 animate-in slide-in-from-bottom-5">
             <h3 className="text-2xl font-black text-white uppercase italic drop-shadow-lg mb-6 flex items-center gap-3">
                 <FaStar className="text-yellow-400" /> Evaluează Experiența
@@ -322,8 +347,7 @@ function Ticket() {
         </div>
       )}
 
-      {/* 2. Afisare Feedback Existent */}
-      {ticket.feedback?.isSubmitted && (
+      {ticket?.feedback?.isSubmitted && (
         <div className="w-full max-w-5xl bg-slate-900/60 backdrop-blur-md border border-yellow-500/20 p-6 rounded-[2rem] mb-8 flex items-center gap-6 shadow-lg">
             <div className="bg-yellow-500/20 p-4 rounded-full border border-yellow-500/30">
                 <FaStar className="text-3xl text-yellow-400" />
@@ -343,28 +367,28 @@ function Ticket() {
       {/* BUTOANE ACȚIUNE */}
       <div className="w-full max-w-5xl flex flex-wrap gap-4 mb-10">
         {/* Buton Preia (Agent) */}
-        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket.status === 'new' && (
+        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket?.status === 'new' && (
             <button onClick={onTicketAssign} className="flex-1 min-w-[200px] bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaCheckCircle /> Preia Tichetul
             </button>
         )}
         
         {/* Buton Raspunde (Toata Lumea) */}
-        {ticket.status !== 'closed' && (
+        {ticket?.status !== 'closed' && (
             <button onClick={() => setModalIsOpen(true)} className="flex-1 min-w-[200px] bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm border border-white/5">
                 <FaPlus /> Răspunde (Notă)
             </button>
         )}
         
         {/* Buton Suspenda (Agent) */}
-        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket.status !== 'closed' && ticket.status !== 'suspended' && (
+        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket?.status !== 'closed' && ticket?.status !== 'suspended' && (
             <button onClick={onTicketSuspend} className="flex-1 min-w-[200px] bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaPause /> Suspendă
             </button>
         )}
 
-        {/* Buton Escaladare - Doar pentru agenți/admini pe tichete neînchise (NOU) */}
-        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket.status !== 'closed' && (
+        {/* Buton Escaladare */}
+        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket?.status !== 'closed' && (
             <button onClick={() => setEscalateModalOpen(true)} className="flex-1 min-w-[200px] bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaShare /> Escaladează
             </button>
@@ -386,10 +410,10 @@ function Ticket() {
       </div>
 
       {/* ÎNCHIDERE TICHET - BLOCAT DACĂ ESTE 'NOU' */}
-      {ticket.status !== 'closed' && (
+      {ticket?.status !== 'closed' && (
         <button 
           onClick={() => {
-            if (ticket.status === 'new') {
+            if (ticket?.status === 'new') {
               toast.error("Un tichet nu poate fi închis înainte de a fi preluat de un agent!", {
                 icon: "⚠️",
                 theme: "dark"
@@ -399,13 +423,13 @@ function Ticket() {
             setConfirmationOpen(true)
           }} 
           className={`w-full max-w-5xl mt-12 font-black py-5 rounded-2xl shadow-2xl transition-all uppercase tracking-[0.2em] text-sm
-            ${ticket.status === 'new' 
+            ${ticket?.status === 'new' 
               ? 'bg-slate-800/50 text-slate-500 border border-slate-700 cursor-not-allowed' 
               : 'bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20'
             }
           `}
         >
-          {ticket.status === 'new' ? 'Tichetul trebuie preluat înainte de închidere' : 'Închide Tichetul Definitiv'}
+          {ticket?.status === 'new' ? 'Tichetul trebuie preluat înainte de închidere' : 'Închide Tichetul Definitiv'}
         </button>
       )}
 
@@ -452,7 +476,7 @@ function Ticket() {
           </div>
       )}
 
-      {/* --- MODAL ESCALADARE (NOU) --- */}
+      {/* --- MODAL ESCALADARE --- */}
       {escalateModalOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 animate-in zoom-in duration-200">
               <div className="bg-slate-900 border border-purple-500/30 rounded-[2.5rem] p-10 max-w-lg w-full shadow-[0_0_50px_rgba(168,85,247,0.15)] relative">

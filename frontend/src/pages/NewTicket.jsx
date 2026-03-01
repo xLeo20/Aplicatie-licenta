@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { createTicket, reset } from '../features/tickets/ticketSlice'
-import { FaArrowLeft, FaPaperPlane, FaTicketAlt, FaUser, FaEnvelope, FaLayerGroup, FaExclamationTriangle, FaPaperclip, FaCloudUploadAlt, FaTimes } from 'react-icons/fa'
+import { FaArrowLeft, FaPaperPlane, FaTicketAlt, FaUser, FaEnvelope, FaLayerGroup, FaExclamationTriangle, FaPaperclip, FaCloudUploadAlt, FaTimes, FaBug } from 'react-icons/fa'
 import Spinner from '../components/Spinner'
 import axios from 'axios'
 
@@ -15,7 +15,12 @@ function NewTicket() {
 
   const [name] = useState(user?.name || '')
   const [email] = useState(user?.email || '')
-  const [product, setProduct] = useState('IT')
+  
+  // --- NOU: JIRA STYLE STATES ---
+  const [issueType, setIssueType] = useState('Incident')
+  const [category, setCategory] = useState('Hardware & Echipamente')
+  // ------------------------------
+
   const [priority, setPriority] = useState('Mica')
   const [description, setDescription] = useState('')
   
@@ -31,13 +36,11 @@ function NewTicket() {
       toast.error(message)
     }
 
-    // Dacă tichetul s-a creat cu succes
     if (isSuccess) {
-      dispatch(reset()) // <--- CURĂȚĂM MEMORIA CA SĂ FORȚĂM REFRESH PE PAGINA URMĂTOARE
-      navigate('/tickets') // Redirecționăm
+      dispatch(reset())
+      navigate('/tickets')
     }
 
-    dispatch(reset())
   }, [dispatch, isError, isSuccess, navigate, message])
 
   // --- LOGICA TRIMITERE CU FIȘIER ---
@@ -46,7 +49,6 @@ function NewTicket() {
 
     let attachmentPath = null
 
-    // Dacă utilizatorul a selectat un fișier, îl încărcăm întâi
     if (file) {
         setIsUploading(true)
         const formData = new FormData()
@@ -59,19 +61,19 @@ function NewTicket() {
                     Authorization: `Bearer ${user.token}`
                 }
             }
-            // Trimitem fișierul către ruta nouă pe care am creat-o
             const res = await axios.post('/api/tickets/upload', formData, config)
-            attachmentPath = res.data // Salvăm calea (ex: /uploads/ticket-123.png)
+            attachmentPath = res.data 
         } catch (error) {
             setIsUploading(false)
             toast.error('Eroare la încărcarea fișierului. Încearcă din nou.')
-            return // Oprim trimiterea tichetului dacă a eșuat poza
+            return 
         }
     }
 
-    // După ce avem calea fișierului (sau null), trimitem tichetul prin Redux
+    // MODIFICAT AICI: Trimitem issueType si category in loc de product
     dispatch(createTicket({ 
-        product, 
+        issueType,
+        category, 
         description, 
         priority, 
         attachment: attachmentPath 
@@ -81,7 +83,7 @@ function NewTicket() {
 
   const handleFileRemove = () => {
       setFile(null);
-      document.getElementById('dropzone-file').value = ""; // Resetează inputul
+      document.getElementById('dropzone-file').value = ""; 
   }
 
   if (!user || isLoading || isUploading) return <Spinner />
@@ -103,7 +105,6 @@ function NewTicket() {
       {/* --- CARD FORMULAR --- */}
       <div className="w-full max-w-3xl bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[3rem] shadow-[0_0_60px_rgba(0,0,0,0.5)] overflow-hidden relative ring-1 ring-white/5">
         
-        {/* Header Decorativ Card */}
         <div className="h-2 w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600"></div>
         
         <div className="p-8 md:p-12">
@@ -131,26 +132,41 @@ function NewTicket() {
                     </div>
                 </div>
 
-                {/* SELECȚII TICHET */}
+                {/* --- NOU: SELECȚII TICHET JIRA STYLE --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <label className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest ml-1">
-                            <FaLayerGroup /> Departament / Produs
+                            <FaBug /> Tip Solicitare (Ce s-a întâmplat?)
                         </label>
                         <div className="relative">
-                            <select name='product' value={product} onChange={(e) => setProduct(e.target.value)} className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer">
-                                <option className="bg-slate-900" value='IT'>IT & Hardware</option>
-                                <option className="bg-slate-900" value='HR'>Resurse Umane</option>
-                                <option className="bg-slate-900" value='Financiar'>Financiar & Contabilitate</option>
-                                <option className="bg-slate-900" value='iPhone'>Dispozitive Mobile (iPhone)</option>
-                                <option className="bg-slate-900" value='Macbook'>Laptop (Macbook)</option>
-                                <option className="bg-slate-900" value='iMac'>Workstation (iMac)</option>
-                                <option className="bg-slate-900" value='iPad'>Tablete (iPad)</option>
+                            <select value={issueType} onChange={(e) => setIssueType(e.target.value)} className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer">
+                                <option className="bg-slate-900" value='Incident'>🔴 Incident (Avarie / Blocaj)</option>
+                                <option className="bg-slate-900" value='Cerere de Serviciu'>🟢 Cerere de Serviciu</option>
+                                <option className="bg-slate-900" value='Cerere de Acces'>🔐 Cerere de Acces</option>
+                                <option className="bg-slate-900" value='Onboarding / Offboarding'>🧑‍💼 Onboarding / Offboarding</option>
                             </select>
                             <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">▼</div>
                         </div>
                     </div>
 
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest ml-1">
+                            <FaLayerGroup /> Categorie (Unde este problema?)
+                        </label>
+                        <div className="relative">
+                            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer">
+                                <option className="bg-slate-900" value='Hardware & Echipamente'>💻 Hardware & Echipamente</option>
+                                <option className="bg-slate-900" value='Software & Licențe'>💽 Software & Licențe</option>
+                                <option className="bg-slate-900" value='Rețea & Comunicații'>🌐 Rețea & Comunicații</option>
+                                <option className="bg-slate-900" value='Conturi & Permisiuni'>🔑 Conturi & Permisiuni</option>
+                                <option className="bg-slate-900" value='Infrastructură Administrativă'>🏢 Infrastructură Admin.</option>
+                            </select>
+                            <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">▼</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
                     <div className="space-y-2">
                         <label className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest ml-1">
                             <FaExclamationTriangle /> Nivel Prioritate
@@ -181,7 +197,7 @@ function NewTicket() {
                     ></textarea>
                 </div>
 
-                {/* --- ZONA UPLOAD FIȘIER (NOU) --- */}
+                {/* --- ZONA UPLOAD FIȘIER --- */}
                 <div className="space-y-2">
                     <label className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest ml-1">
                         <FaPaperclip /> Atașament (Screenshot / Log) - Opțional

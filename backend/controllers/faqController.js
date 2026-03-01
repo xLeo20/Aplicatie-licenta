@@ -32,6 +32,13 @@ const createFaq = asyncHandler(async (req, res) => {
         category: category || 'General'
     });
 
+    // --- NOU: SOCKET.IO PENTRU CREARE FAQ ---
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('faqChanged'); // Anunțăm toți clienții conectați să-și dea refresh la FAQ
+    }
+    // -----------------------------------------
+
     res.status(201).json(faq);
 });
 
@@ -52,6 +59,14 @@ const deleteFaq = asyncHandler(async (req, res) => {
     }
 
     await faq.deleteOne();
+
+    // --- NOU: SOCKET.IO PENTRU ȘTERGERE FAQ ---
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('faqChanged'); // Anunțăm toți clienții conectați să-și dea refresh la FAQ
+    }
+    // ------------------------------------------
+
     res.status(200).json({ success: true, id: req.params.id });
 });
 

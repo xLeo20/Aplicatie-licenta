@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { FaClock, FaExclamationCircle, FaPause, FaChevronRight } from 'react-icons/fa'
+import { FaCircle } from 'react-icons/fa'
 
 function TicketItem({ ticket }) {
   // Calcul SLA
@@ -41,10 +41,17 @@ function TicketItem({ ticket }) {
           </span>
         </div>
 
-        {/* COLOANA 2: PRODUS - Aliniat stânga (sub 'PRODUS') */}
-        <div className="text-left">
-          <span className="text-white font-semibold text-base">
-            {ticket.product}
+        {/* COLOANA 2: TIP & CATEGORIE (MODIFICAT JIRA STYLE) */}
+        <div className="flex flex-col text-left">
+          <span className="text-white font-semibold text-sm flex items-center gap-2">
+            {ticket.issueType === 'Incident' && <FaCircle className="text-red-500 text-[8px]" />}
+            {ticket.issueType === 'Cerere de Serviciu' && <FaCircle className="text-green-500 text-[8px]" />}
+            {ticket.issueType === 'Cerere de Acces' && <FaCircle className="text-blue-500 text-[8px]" />}
+            {ticket.issueType === 'Onboarding / Offboarding' && <FaCircle className="text-purple-500 text-[8px]" />}
+            {ticket.issueType || 'N/A'}
+          </span>
+          <span className="text-[10px] text-blue-300 uppercase tracking-wider font-bold mt-1">
+            {ticket.category || 'N/A'}
           </span>
         </div>
 

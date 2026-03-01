@@ -28,11 +28,12 @@ const getTickets = asyncHandler(async (req, res) => {
 // @route   POST /api/tickets
 // @access  Private
 const createTicket = asyncHandler(async (req, res) => {
-  const { product, description, priority, attachment } = req.body;
+  // MODIFICARE: Preluam noile campuri in loc de product
+  const { issueType, category, description, priority, attachment } = req.body;
 
-  if (!product || !description) {
+  if (!issueType || !category || !description) {
     res.status(400);
-    throw new Error('Please add a product and description');
+    throw new Error('Te rugam sa completezi toate campurile obligatorii');
   }
 
   const user = await User.findById(req.user.id);
@@ -51,7 +52,8 @@ const createTicket = asyncHandler(async (req, res) => {
 
   const ticket = await Ticket.create({
     ticketId: newTicketId,  
-    product,
+    issueType, // Salvam campul nou
+    category,  // Salvam campul nou
     description,
     priority,
     user: req.user.id,
@@ -64,7 +66,9 @@ const createTicket = asyncHandler(async (req, res) => {
   // --- SOCKET.IO - Anunțăm toți clienții conectați că a apărut un tichet nou ---
   const io = req.app.get('io');
   if (io) {
-    io.emit('tichet_nou_creat', ticket); 
+    io.emit('tichet_nou_creat', ticket);
+    // Emitem și ticketUpdated pentru a forța refresh-ul listelor pe dashboard
+    io.emit('ticketUpdated'); 
   }
   // ---------------------------------------------------------------------------------
 
@@ -77,7 +81,8 @@ const createTicket = asyncHandler(async (req, res) => {
           <p>Tichetul tău a fost înregistrat cu succes!</p>
           <div style="background-color: #e8f0fe; padding: 15px; border-left: 5px solid #0056b3; margin: 20px 0;">
             <p><strong>ID Tichet:</strong> #${ticket.ticketId}</p>
-            <p><strong>Produs:</strong> ${ticket.product}</p>
+            <p><strong>Tip Solicitare:</strong> ${ticket.issueType}</p>
+            <p><strong>Categorie:</strong> ${ticket.category}</p>
             <p><strong>Prioritate:</strong> ${ticket.priority}</p>
           </div>
           <p>Un agent va prelua solicitarea ta în cel mai scurt timp.</p>
@@ -138,6 +143,14 @@ const deleteTicket = asyncHandler(async (req, res) => {
   }
 
   await ticket.deleteOne();
+
+  // --- NOU: SOCKET IO PENTRU STERGERE ---
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('ticketUpdated'); // Transmitem semnal pentru a dispărea din liste instant
+  }
+  // --------------------------------------
+
   res.status(200).json({ success: true });
 });
 
@@ -162,6 +175,14 @@ const updateTicket = asyncHandler(async (req, res) => {
     req.body,
     { new: true }
   );
+
+  // --- NOU: SOCKET IO PENTRU ACTUALIZARE (Editare din modal de ex) ---
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('ticketUpdated', updatedTicket);
+  }
+  // -------------------------------------------------------------------
+
   res.status(200).json(updatedTicket);
 });
 
@@ -186,10 +207,10 @@ const assignTicket = asyncHandler(async (req, res) => {
     req.params.id,
     { status: 'open', assignedTo: user.id },
     { new: true }
-  );
+  ).populate('assignedTo', 'name email'); // IMPORTANT: populam la fel cum faci manual daca e cazul pe front
 
   // --- NOU: LOG DE SISTEM PENTRU PRELUARE ---
-  await Note.create({
+  const note = await Note.create({
     text: `A preluat acest tichet. Statusul a devenit "În Lucru".`,
     isStaff: true,
     staffId: user.id,
@@ -198,6 +219,14 @@ const assignTicket = asyncHandler(async (req, res) => {
     isSystem: true // Marchează nota ca fiind acțiune de sistem
   });
   // ------------------------------------------
+
+  // --- NOU: SOCKET IO PENTRU PRELUARE ---
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('ticketUpdated', updatedTicket); // Tabelele se dau pe 'open' si isi iau agentul
+    io.emit('noteAdded', note);              // Se adauga nota sistem in chat instantaneu
+  }
+  // --------------------------------------
 
   // --- LOGICA EMAIL PRELUARE ---
   try {
@@ -256,7 +285,7 @@ const suspendTicket = asyncHandler(async (req, res) => {
     );
 
     // --- NOU: LOG DE SISTEM PENTRU SUSPENDARE ---
-    await Note.create({
+    const note = await Note.create({
         text: `A schimbat statusul tichetului în "Suspendat".`,
         isStaff: user.role === 'agent' || user.role === 'admin',
         staffId: user.id,
@@ -265,6 +294,14 @@ const suspendTicket = asyncHandler(async (req, res) => {
         isSystem: true 
     });
     // --------------------------------------------
+
+    // --- NOU: SOCKET IO PENTRU SUSPENDARE ---
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('ticketUpdated', updatedTicket); 
+      io.emit('noteAdded', note); 
+    }
+    // ----------------------------------------
 
     res.status(200).json(updatedTicket);
 });
@@ -296,7 +333,7 @@ const closeTicket = asyncHandler(async (req, res) => {
     );
 
     // --- NOU: LOG DE SISTEM PENTRU ÎNCHIDERE ---
-    await Note.create({
+    const note = await Note.create({
         text: resolutionText ? `Soluție / Rezolvare: ${resolutionText}` : `A închis acest tichet.`,
         isStaff: user.role === 'agent' || user.role === 'admin',
         staffId: user.id,
@@ -305,6 +342,14 @@ const closeTicket = asyncHandler(async (req, res) => {
         isSystem: true 
     });
     // -------------------------------------------
+
+    // --- NOU: SOCKET IO PENTRU ÎNCHIDERE ---
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('ticketUpdated', updatedTicket); 
+      io.emit('noteAdded', note); 
+    }
+    // ---------------------------------------
 
     // --- LOGICA EMAIL ÎNCHIDERE & FEEDBACK ---
     try {
@@ -383,6 +428,13 @@ const addFeedback = asyncHandler(async (req, res) => {
 
   await ticket.save()
 
+  // --- NOU: SOCKET IO PENTRU RATING (Sa apara ratingul instant in lista de tickete a adminului) ---
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('ticketUpdated', ticket);
+  }
+  // ------------------------------------------------------------------------------------------------
+
   res.status(200).json(ticket)
 });
 
@@ -427,7 +479,7 @@ const escalateTicket = asyncHandler(async (req, res) => {
     ).populate('assignedTo', 'name email');
 
     // Salvăm acțiunea în Istoric (Audit Log)
-    await Note.create({
+    const note = await Note.create({
         text: `A escaladat tichetul către ${targetAgent.name}. Motiv: ${reason || 'Nespecificat'}`,
         isStaff: true,
         staffId: user.id,
@@ -435,6 +487,14 @@ const escalateTicket = asyncHandler(async (req, res) => {
         user: user.id,
         isSystem: true 
     });
+
+    // --- NOU: SOCKET IO PENTRU ESCALADARE ---
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('ticketUpdated', updatedTicket); 
+      io.emit('noteAdded', note); 
+    }
+    // ----------------------------------------
 
     // Trimitem email noului agent pentru a-l notifica
     try {
@@ -461,6 +521,18 @@ const escalateTicket = asyncHandler(async (req, res) => {
     res.status(200).json(updatedTicket);
 });
 
+// @desc    Upload Fisier Tichet
+// @route   POST /api/tickets/upload
+// @access  Private
+const uploadTicketFile = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        res.status(400);
+        throw new Error('Niciun fișier încărcat');
+    }
+    // Returnăm calea fișierului pentru a fi salvată în tichet
+    res.send(`/${req.file.path.replace(/\\/g, '/')}`);
+});
+
 module.exports = {
   getTickets,
   createTicket,
@@ -472,5 +544,6 @@ module.exports = {
   closeTicket,
   addFeedback,
   getAgents,
-  escalateTicket
+  escalateTicket,
+  uploadTicketFile // Trebuie sa existe aici!
 };

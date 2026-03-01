@@ -6,21 +6,20 @@ import { toast } from 'react-toastify'
 import axios from 'axios'
 import Spinner from '../components/Spinner'
 
+// IMPORT PENTRU SOCKETS
+import { io } from 'socket.io-client';
+const socket = io('http://localhost:5000'); 
+
 function AdminUsers() {
   const [users, setUsers] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // --- STATE-URI PENTRU MODAL ---
   const [modalOpen, setModalOpen] = useState(false)
   const [modalType, setModalType] = useState('add') 
   const [currentUserId, setCurrentUserId] = useState(null) 
   
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'angajat',
-    department: 'General'
+    name: '', email: '', password: '', role: 'angajat', department: 'General'
   })
 
   const { name, email, password, role, department } = formData
@@ -40,13 +39,30 @@ function AdminUsers() {
     }
   }
 
+  useEffect(() => {
+    if (!user || user.role !== 'admin') { 
+        navigate('/'); 
+        return; 
+    }
+    fetchUsers()
+
+    // --- SOCKET.IO LISTENER ---
+    socket.on('usersChanged', () => {
+        fetchUsers();
+    });
+
+    return () => {
+        socket.off('usersChanged');
+    }
+  }, [user, navigate])
+
   const deleteUser = async (id) => {
     if (window.confirm('Ești sigur că vrei să ștergi acest utilizator?')) {
       try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } }
         await axios.delete(`/api/users/${id}`, config)
-        setUsers(users.filter((u) => u._id !== id))
         toast.success('Utilizator șters cu succes')
+        // Tabela se reîncărcă automat de la socket
       } catch (error) {
         toast.error('Eroare la ștergerea utilizatorului')
       }
@@ -63,17 +79,16 @@ function AdminUsers() {
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } }
         if (modalType === 'add') {
-            const res = await axios.post('/api/users/add', formData, config)
-            setUsers([...users, res.data]) 
+            await axios.post('/api/users/add', formData, config)
             toast.success('Utilizator creat cu succes!')
         } else {
             const dataToSend = { ...formData }
             if(!dataToSend.password) delete dataToSend.password
-            const res = await axios.put(`/api/users/${currentUserId}`, dataToSend, config)
-            setUsers(users.map((u) => (u._id === currentUserId ? res.data : u)))
+            await axios.put(`/api/users/${currentUserId}`, dataToSend, config)
             toast.success('Utilizator actualizat cu succes!')
         }
         closeModal()
+        // Nu dăm setUsers manual, deoarece backend-ul va trimite `usersChanged` prin Sockets.
     } catch (error) {
         toast.error(error.response?.data?.message || 'Eroare server')
     }
@@ -104,11 +119,6 @@ function AdminUsers() {
     setFormData((prevState) => ({ ...prevState, [e.target.name]: e.target.value }))
   }
 
-  useEffect(() => {
-    if (!user || user.role !== 'admin') { navigate('/'); return; }
-    fetchUsers()
-  }, [user, navigate])
-
   const getRoleBadge = (role) => {
       switch(role) {
           case 'admin':
@@ -123,9 +133,8 @@ function AdminUsers() {
   if (isLoading) return <Spinner />
 
   return (
+    // ... RESTUL COMPONENTEI HTML ...
     <div className="w-full flex flex-col items-center px-4 py-10 animate-in fade-in duration-500">
-      
-      {/* --- HEADER (Max width setat pentru aliniere) --- */}
       <div className="w-full max-w-6xl flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <div>
             <h1 className="text-4xl font-black text-white drop-shadow-lg tracking-tight uppercase italic">Management Utilizatori</h1>
@@ -140,7 +149,6 @@ function AdminUsers() {
           </button>
       </div>
 
-      {/* --- TABEL CARD (Centrat cu max-w-6xl) --- */}
       <div className="w-full max-w-6xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden ring-1 ring-white/10">
         <div className="overflow-x-auto text-white">
             <table className="w-full text-left border-collapse">
@@ -192,7 +200,6 @@ function AdminUsers() {
         </div>
       </div>
 
-      {/* --- MODAL DESIGN --- */}
       {modalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
               <div className="bg-[#1e293b] border border-white/20 rounded-[3rem] shadow-[0_0_60px_rgba(0,0,0,0.8)] w-full max-w-lg relative overflow-hidden ring-1 ring-white/20">

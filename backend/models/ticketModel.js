@@ -6,18 +6,23 @@ const ticketSchema = mongoose.Schema({
         required: true,
         ref: 'User'
     },
-    // --- ID SCURT ---
     ticketId: {
         type: Number,
         unique: true, 
         sparse: true
     },
-    // ----------------
-    product: {
+    // --- NOU: JIRA STYLE STRUCTURE ---
+    issueType: {
         type: String,
-        required: [true, 'Selecteaza un produs sau departament'],
-        // AM SCOS ENUM-UL CA SA POTI PUNE ORICE (IT, Financiar, etc.)
+        required: [true, 'Selecteaza tipul solicitarii'],
+        enum: ['Incident', 'Cerere de Serviciu', 'Cerere de Acces', 'Onboarding / Offboarding']
     },
+    category: {
+        type: String,
+        required: [true, 'Selecteaza o categorie'],
+        enum: ['Hardware & Echipamente', 'Software & Licențe', 'Rețea & Comunicații', 'Conturi & Permisiuni', 'Infrastructură Administrativă']
+    },
+    // ---------------------------------
     description: {
         type: String,
         required: [true, 'Adauga o descriere a problemei']
@@ -28,7 +33,6 @@ const ticketSchema = mongoose.Schema({
         enum: ['new', 'open', 'closed', 'suspended'],
         default: 'new'
     },
-
     feedback: {
       rating: {
         type: Number,
@@ -52,7 +56,6 @@ const ticketSchema = mongoose.Schema({
         type: Date,
         required: false
     },
-    // NOU: SLA Preluare (Response SLA)
     pickupDeadline: {
         type: Date,
         required: false
@@ -63,7 +66,7 @@ const ticketSchema = mongoose.Schema({
         required: false
     },
     attachment: {
-      type: String, // Aici vom salva calea către fișier (ex: /uploads/screenshot.png)
+      type: String,
       default: null
     }
 }, {
