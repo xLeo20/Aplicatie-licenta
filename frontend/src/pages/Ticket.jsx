@@ -3,9 +3,8 @@ import { toast } from 'react-toastify'
 import { useSelector, useDispatch } from 'react-redux'
 import { getTicket, closeTicket, suspendTicket, assignTicket, addFeedback, escalateTicket } from '../features/tickets/ticketSlice'
 import { getNotes, createNote } from '../features/notes/noteSlice'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch, FaStar, FaShare, FaBug, FaLayerGroup } from 'react-icons/fa' 
-import { Link } from 'react-router-dom'
 import Spinner from '../components/Spinner'
 import NoteItem from '../components/NoteItem'
 import SLACountdown from '../components/SLACountdown'
@@ -117,7 +116,7 @@ function Ticket() {
 
   const confirmClose = () => {
     dispatch(closeTicket(ticketId))
-    toast.success('Tichetul a fost închis')
+    toast.success(user?.role?.toLowerCase() === 'angajat' ? 'Solicitarea a fost anulată' : 'Tichetul a fost închis')
     setConfirmationOpen(false)
     navigate('/tickets')
   }
@@ -226,8 +225,8 @@ function Ticket() {
       {/* ZONA SLA-URI */}
       <div className="w-full max-w-5xl space-y-4 mb-8">
           
-          {/* SLA PRELUARE */}
-          {ticket?.status === 'new' && ticket?.pickupDeadline && (
+          {/* SLA PRELUARE - ASCUNS PENTRU ANGAJAT (Folosind toLowerCase pentru siguranta) */}
+          {ticket?.status === 'new' && ticket?.pickupDeadline && pickupTimeLeft && user?.role?.toLowerCase() !== 'angajat' && (
             <div className={`w-full backdrop-blur-xl border p-4 rounded-2xl flex justify-between items-center transition-all ${
               pickupTimeLeft?.expired 
                 ? 'bg-red-500/10 border-red-500/30 ring-1 ring-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.2)]' 
@@ -364,31 +363,32 @@ function Ticket() {
       {/* ----------------------------------- */}
 
 
-      {/* BUTOANE ACȚIUNE */}
+      {/* BUTOANE ACȚIUNE - CORECTAT PENTRU ROLURI (toLowerCase) */}
       <div className="w-full max-w-5xl flex flex-wrap gap-4 mb-10">
-        {/* Buton Preia (Agent) */}
-        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket?.status === 'new' && (
+        
+        {/* Buton Preia (DOAR Agent & Admin) */}
+        {user && user.role?.toLowerCase() !== 'angajat' && ticket?.status === 'new' && (
             <button onClick={onTicketAssign} className="flex-1 min-w-[200px] bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaCheckCircle /> Preia Tichetul
             </button>
         )}
         
-        {/* Buton Raspunde (Toata Lumea) */}
+        {/* Buton Raspunde (Toată Lumea) */}
         {ticket?.status !== 'closed' && (
             <button onClick={() => setModalIsOpen(true)} className="flex-1 min-w-[200px] bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm border border-white/5">
                 <FaPlus /> Răspunde (Notă)
             </button>
         )}
         
-        {/* Buton Suspenda (Agent) */}
-        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket?.status !== 'closed' && ticket?.status !== 'suspended' && (
+        {/* Buton Suspenda (DOAR Agent & Admin) */}
+        {user && user.role?.toLowerCase() !== 'angajat' && ticket?.status !== 'closed' && ticket?.status !== 'suspended' && (
             <button onClick={onTicketSuspend} className="flex-1 min-w-[200px] bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaPause /> Suspendă
             </button>
         )}
 
-        {/* Buton Escaladare */}
-        {user && (user.role === 'agent' || user.role === 'admin' || user.role === 'angajat') && ticket?.status !== 'closed' && (
+        {/* Buton Escaladare (DOAR Agent & Admin) */}
+        {user && user.role?.toLowerCase() !== 'angajat' && ticket?.status !== 'closed' && (
             <button onClick={() => setEscalateModalOpen(true)} className="flex-1 min-w-[200px] bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaShare /> Escaladează
             </button>
@@ -409,11 +409,11 @@ function Ticket() {
         )}
       </div>
 
-      {/* ÎNCHIDERE TICHET - BLOCAT DACĂ ESTE 'NOU' */}
+      {/* ÎNCHIDERE TICHET / ANULARE SOLICITARE */}
       {ticket?.status !== 'closed' && (
         <button 
           onClick={() => {
-            if (ticket?.status === 'new') {
+            if (user?.role?.toLowerCase() !== 'angajat' && ticket?.status === 'new') {
               toast.error("Un tichet nu poate fi închis înainte de a fi preluat de un agent!", {
                 icon: "⚠️",
                 theme: "dark"
@@ -423,13 +423,15 @@ function Ticket() {
             setConfirmationOpen(true)
           }} 
           className={`w-full max-w-5xl mt-12 font-black py-5 rounded-2xl shadow-2xl transition-all uppercase tracking-[0.2em] text-sm
-            ${ticket?.status === 'new' 
+            ${user?.role?.toLowerCase() !== 'angajat' && ticket?.status === 'new' 
               ? 'bg-slate-800/50 text-slate-500 border border-slate-700 cursor-not-allowed' 
               : 'bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20'
             }
           `}
         >
-          {ticket?.status === 'new' ? 'Tichetul trebuie preluat înainte de închidere' : 'Închide Tichetul Definitiv'}
+          {user?.role?.toLowerCase() === 'angajat' && ticket?.status === 'new' 
+            ? 'Anulează Solicitarea' 
+            : (ticket?.status === 'new' ? 'Tichetul trebuie preluat înainte de închidere' : 'Închide Tichetul Definitiv')}
         </button>
       )}
 
@@ -539,9 +541,9 @@ function Ticket() {
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 animate-in zoom-in duration-200">
               <div className="bg-slate-900 border border-red-500/30 rounded-[2.5rem] p-10 max-w-md w-full text-center shadow-[0_0_50px_rgba(239,68,68,0.2)]">
                   <FaExclamationTriangle size={50} className="text-red-500 mx-auto mb-6" />
-                  <h2 className="text-2xl font-black text-white mb-4 uppercase">Confirmă Închiderea</h2>
+                  <h2 className="text-2xl font-black text-white mb-4 uppercase">Confirmă Acțiunea</h2>
                   <div className="flex gap-4 mt-8">
-                      <button onClick={confirmClose} className="flex-1 bg-red-600 text-white font-black py-4 rounded-2xl hover:bg-red-500 transition-all uppercase text-xs tracking-widest shadow-[0_0_20px_rgba(239,68,68,0.4)]">DA, Închide</button>
+                      <button onClick={confirmClose} className="flex-1 bg-red-600 text-white font-black py-4 rounded-2xl hover:bg-red-500 transition-all uppercase text-xs tracking-widest shadow-[0_0_20px_rgba(239,68,68,0.4)]">DA, Confirm</button>
                       <button onClick={() => setConfirmationOpen(false)} className="flex-1 bg-white/10 text-white font-black py-4 rounded-2xl hover:bg-white/20 transition-all uppercase text-xs tracking-widest border border-white/5">Anulează</button>
                   </div>
               </div>

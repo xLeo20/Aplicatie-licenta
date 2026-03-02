@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import { FaTrash, FaUserShield, FaUserTie, FaUser, FaPlus, FaEdit, FaTimes } from 'react-icons/fa'
+import { FaTrash, FaUserShield, FaUserTie, FaUser, FaPlus, FaEdit, FaTimes, FaBuilding } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 import Spinner from '../components/Spinner'
@@ -62,7 +62,7 @@ function AdminUsers() {
         const config = { headers: { Authorization: `Bearer ${user.token}` } }
         await axios.delete(`/api/users/${id}`, config)
         toast.success('Utilizator șters cu succes')
-        // Tabela se reîncărcă automat de la socket
+        fetchUsers(); // FORTAM REFRESH LOCAL INSTANT
       } catch (error) {
         toast.error('Eroare la ștergerea utilizatorului')
       }
@@ -88,7 +88,7 @@ function AdminUsers() {
             toast.success('Utilizator actualizat cu succes!')
         }
         closeModal()
-        // Nu dăm setUsers manual, deoarece backend-ul va trimite `usersChanged` prin Sockets.
+        fetchUsers(); // FORTAM REFRESH LOCAL INSTANT DUPA EDITARE SAU CREARE
     } catch (error) {
         toast.error(error.response?.data?.message || 'Eroare server')
     }
@@ -103,12 +103,22 @@ function AdminUsers() {
   const openEditModal = (userToEdit) => {
     setModalType('edit')
     setCurrentUserId(userToEdit._id)
+    
+    // TRADUCEM DEPARTAMENTELE VECHI IN CELE NOI PENTRU DROPDOWN
+    let safeDepartment = userToEdit.department || 'General';
+    if (safeDepartment === 'HR') safeDepartment = 'Resurse Umane';
+    if (safeDepartment === 'IT') safeDepartment = 'IT Tech';
+    if (safeDepartment === 'Marketing') safeDepartment = 'Comercial';
+    if (safeDepartment === 'Financiar') safeDepartment = 'General';
+    if (safeDepartment === 'Vanzari') safeDepartment = 'Comercial';
+    if (safeDepartment === 'Suport') safeDepartment = 'Customer Care';
+
     setFormData({
         name: userToEdit.name,
         email: userToEdit.email,
         password: '', 
         role: userToEdit.role,
-        department: userToEdit.department || 'General'
+        department: safeDepartment // Folosim departamentul tradus
     })
     setModalOpen(true)
   }
@@ -120,7 +130,9 @@ function AdminUsers() {
   }
 
   const getRoleBadge = (role) => {
-      switch(role) {
+      // transformăm în litere mici pentru comparație sigură
+      const safeRole = role ? role.toLowerCase() : '';
+      switch(safeRole) {
           case 'admin':
               return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-red-500/20 text-red-400 border border-red-500/30 uppercase tracking-wider"><FaUserShield/> Admin</span>;
           case 'agent':
@@ -133,7 +145,6 @@ function AdminUsers() {
   if (isLoading) return <Spinner />
 
   return (
-    // ... RESTUL COMPONENTEI HTML ...
     <div className="w-full flex flex-col items-center px-4 py-10 animate-in fade-in duration-500">
       <div className="w-full max-w-6xl flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <div>
@@ -179,7 +190,7 @@ function AdminUsers() {
                             </td>
                             <td className="px-8 py-5 whitespace-nowrap text-center">
                                 <span className="inline-block bg-white/5 text-blue-100/90 px-4 py-1.5 rounded-xl text-xs border border-white/10 font-bold uppercase tracking-widest">
-                                    {u.department || '-'}
+                                    {u.department || 'General'}
                                 </span>
                             </td>
                             <td className="px-8 py-5 whitespace-nowrap text-right">
@@ -241,10 +252,10 @@ function AdminUsers() {
                                 <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest px-1">Departament</label>
                                 <select className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer appearance-none" name='department' value={department} onChange={onChange}>
                                     <option value='General'>General</option>
-                                    <option value='IT'>IT Tech</option>
-                                    <option value='HR'>Resurse Umane</option>
-                                    <option value='Vanzari'>Comercial</option>
-                                    <option value='Suport'>Customer Care</option>
+                                    <option value='IT Tech'>IT Tech</option>
+                                    <option value='Resurse Umane'>Resurse Umane</option>
+                                    <option value='Comercial'>Comercial</option>
+                                    <option value='Customer Care'>Customer Care</option>
                                 </select>
                             </div>
                           </div>

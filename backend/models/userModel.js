@@ -26,8 +26,8 @@ const userSchema = mongoose.Schema({
   },
   department: {
     type: String,
-    enum: ['IT', 'HR', 'Financiar', 'General'],
     default: 'General'
+    // Am șters enum-ul de aici ca să poți salva și vechile 'HR' și noile 'Comercial' fără erori
   },
   profileImage: { type: String, required: false, default: '' },
 }, {
