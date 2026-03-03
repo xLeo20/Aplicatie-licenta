@@ -6,20 +6,24 @@ import { logout, reset } from '../features/auth/authSlice'
 import { toast } from 'react-toastify' 
 import { io } from 'socket.io-client' 
 
+// Initializare client de WebSockets
 const socket = io('http://localhost:5000')
 
 function Header() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const location = useLocation()
+  
+  // Selectie context utilizator curent din Redux Store
   const { user } = useSelector((state) => state.auth)
   
-  // State pentru Notificări
+  // State intern pentru managementul notificarilor
   const [hasNewNotification, setHasNewNotification] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [notifications, setNotifications] = useState([]) // Aici salvăm lista
+  const [notifications, setNotifications] = useState([]) 
   
-  const dropdownRef = useRef(null) // Pentru a închide meniul când dai click în afara lui
+  // Referinta DOM pentru a captura click-urile in afara ariei dropdown-ului
+  const dropdownRef = useRef(null) 
 
   const onLogout = () => {
     dispatch(logout())
@@ -27,18 +31,17 @@ function Header() {
     navigate('/')
   }
 
-  // --- LOGICA SOCKET.IO & NOTIFICĂRI ---
+  // Effect dedicat ascultarii evenimentelor de tip push-notification trimise de server (ex: un raspuns nou)
   useEffect(() => {
     if (user) {
       socket.on('notificare_noua', (data) => {
-        // Afișăm toast-ul scurt
         toast.info(data.message, {
           position: "top-right",
           autoClose: 5000,
           theme: "dark", 
         });
         
-        // Adăugăm notificarea în lista noastră (la început)
+        // Push la noua notificare in array-ul local (o inseram la indexul 0 pentru LIFO rendering)
         setNotifications((prev) => [
           {
              id: Date.now(), 
@@ -53,12 +56,13 @@ function Header() {
       })
     }
 
+    // Cleanup phase: evitam memory leaks la unmount
     return () => {
       socket.off('notificare_noua')
     }
   }, [user])
 
-  // Închide dropdown-ul dacă dai click oriunde altundeva pe ecran
+  // Logic wrapper: prinde click-urile din exteriorul componentei ref pentru un UX natural
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -70,8 +74,8 @@ function Header() {
   }, [dropdownRef])
 
   const handleBellClick = () => {
-    setHasNewNotification(false) // Stingem ledul
-    setIsDropdownOpen(!isDropdownOpen) // Deschidem/Închidem meniul
+    setHasNewNotification(false) 
+    setIsDropdownOpen(!isDropdownOpen) 
   }
 
   const goToTicket = (ticketId) => {
@@ -84,6 +88,7 @@ function Header() {
     setIsDropdownOpen(false)
   }
 
+  // Utilitar de determinare a rutei active pentru evidentiere CSS
   const isActive = (path) => location.pathname === path ? 'text-blue-400 bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/5'
 
   return (
@@ -107,6 +112,7 @@ function Header() {
         <ul className="flex flex-wrap justify-center items-center gap-2">
           {user ? (
             <>
+              {/* Rutare conditionata pe baza autorizatiei (RBAC) */}
               {user.role === 'admin' && (
                 <li>
                   <Link to='/admin' className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${isActive('/admin')}`}>
@@ -146,12 +152,12 @@ function Header() {
           {user ? (
             <div className="flex items-center gap-5">
               
-              {/* --- ZONA CLOPOȚEL & DROPDOWN --- */}
+              {/* Componenta Container Notificari Push */}
               <div className="relative" ref={dropdownRef}>
                 <div 
                   className="relative cursor-pointer text-white/50 hover:text-white transition-colors p-2"
                   onClick={handleBellClick}
-                  title="Notificări"
+                  title="Notificari"
                 >
                   <FaBell size={20} className={hasNewNotification ? "animate-[ring_1s_ease-in-out_infinite] text-blue-400" : ""} />
                   {hasNewNotification && (
@@ -162,13 +168,13 @@ function Header() {
                   )}
                 </div>
 
-                {/* DROPDOWN MENU */}
+                {/* Dropdown Box */}
                 {isDropdownOpen && (
                   <div className="absolute right-0 top-full mt-4 w-80 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden z-[100] animate-in slide-in-from-top-2 duration-200">
                     <div className="p-4 border-b border-white/5 bg-slate-900/50 flex justify-between items-center">
-                      <h3 className="text-white font-bold text-sm tracking-widest uppercase">Notificări Recente</h3>
+                      <h3 className="text-white font-bold text-sm tracking-widest uppercase">Notificari Recente</h3>
                       {notifications.length > 0 && (
-                        <button onClick={clearNotifications} className="text-blue-400/50 hover:text-blue-400 transition-colors" title="Șterge toate">
+                        <button onClick={clearNotifications} className="text-blue-400/50 hover:text-blue-400 transition-colors" title="Sterge istoric">
                           <FaCheckDouble size={14} />
                         </button>
                       )}
@@ -189,7 +195,7 @@ function Header() {
                       ) : (
                         <div className="p-8 text-center flex flex-col items-center justify-center gap-3">
                           <FaBell className="text-white/10 text-3xl" />
-                          <p className="text-white/40 text-xs italic">Nu ai nicio notificare momentan.</p>
+                          <p className="text-white/40 text-xs italic">Nu ai primit alerte noi.</p>
                         </div>
                       )}
                     </div>
@@ -197,6 +203,7 @@ function Header() {
                 )}
               </div>
 
+              {/* Keyframes injectate inline pentru portabilitate */}
               <style>{`
                 @keyframes ring {
                   0%, 100% { transform: rotate(0deg); }
@@ -222,7 +229,7 @@ function Header() {
                 </div>
               </Link>
 
-              {/* Logout Button */}
+              {/* End session handler */}
               <button 
                 onClick={onLogout}
                 className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 p-3 rounded-xl transition-all shadow-lg active:scale-95"
@@ -233,7 +240,6 @@ function Header() {
             </div>
           ) : (
             <div className="flex gap-4">
-              {/* AICI AM SCOS BUTONUL DE SIGN UP */}
               <Link to='/login' className="bg-blue-600 hover:bg-blue-500 text-white font-black px-6 py-2 rounded-xl shadow-lg transition-all text-sm flex items-center gap-2">
                 <FaSignInAlt /> Autentificare
               </Link>

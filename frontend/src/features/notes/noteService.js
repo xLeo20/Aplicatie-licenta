@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-// Get ticket notes
+// Stratul de retea pentru extragerea log-ului de mesaje (timeline)
 const getNotes = async (ticketId, token) => {
   const config = {
     headers: { Authorization: `Bearer ${token}` },
@@ -9,17 +9,18 @@ const getNotes = async (ticketId, token) => {
   return response.data
 }
 
-// Create ticket note (AICI AM MODIFICAT)
+// Stratul de retea pentru injectarea unui comentariu nou in ticket
 const createNote = async (noteData, token) => {
   const config = {
     headers: { Authorization: `Bearer ${token}` },
   }
-  // Acum trimitem si textul si attachment-ul către server!
+  
+  // Impachetam atat sirul de text cat si referinta URI a fisierului incarcat
   const response = await axios.post(
     `/api/tickets/${noteData.ticketId}/notes`,
     {
       text: noteData.noteText,
-      attachment: noteData.attachment // <--- Aceasta este piesa lipsă!
+      attachment: noteData.attachment 
     },
     config
   )

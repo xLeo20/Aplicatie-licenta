@@ -4,31 +4,29 @@ const dotenv = require('dotenv').config();
 const { errorHandler } = require('./middleware/errorMiddleware');
 const connectDB = require('./config/db');
 const path = require('path');
-const cors = require('cors'); // <--- 1. IMPORTĂM CORS
+const cors = require('cors'); 
 
-// --- PENTRU SOCKET.IO ---
 const http = require('http'); 
 const { Server } = require('socket.io');
-// ------------------------
 
 const PORT = process.env.PORT || 5000;
 
-// Conectarea la baza de date
+// Initiem conexiunea la Mongoose
 connectDB();
 
 const app = express();
 
-// <--- 2. ACTIVĂM CORS PENTRU TOATE RUTELE EXPRESS ---
+// Setari CORS pentru a permite clientilor React sa faca request-uri catre acest API
+// credentials: true e necesar daca vom folosi cookies sau headere de autorizare complexe
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'], // Porturile tale de React
+  origin: ['http://localhost:3000', 'http://localhost:5173'], 
   credentials: true
 }));
-// -----------------------------------------------------
 
-// Creăm serverul HTTP folosind aplicația Express
+// Montam un server HTTP nativ peste Express pentru a putea atasa ulterior Socket.io
 const server = http.createServer(app);
 
-// Inițializăm Socket.io și permitem conexiuni de pe Frontend-ul tău
+// Initializare instanta WebSockets cu bypass CORS catre porturile de front
 const io = new Server(server, {
   cors: {
     origin: ['http://localhost:3000', 'http://localhost:5173'],
@@ -36,31 +34,32 @@ const io = new Server(server, {
   },
 });
 
-// Facem "io" accesibil peste tot în aplicație (în controllere)
+// Injectam instanta "io" in obiectul global "app" pentru a o putea apela din controllere (ex: la crearea unui tichet)
 app.set('io', io);
 
-// Ascultăm când un utilizator se conectează la WebSockets
+// Event listener general pentru conexiunile noi de WebSockets
 io.on('connection', (socket) => {
-  console.log(`Un utilizator s-a conectat la Socket.io: ${socket.id}`.cyan);
+  console.log(`Node conectat via Socket.io: ${socket.id}`.cyan);
 
   socket.on('disconnect', () => {
-    console.log(`Utilizator deconectat: ${socket.id}`.gray);
+    console.log(`Conexiune inchisa: ${socket.id}`.gray);
   });
 });
 
+// Parsere pentru payload-uri JSON si URL Encoded
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Permite accesul public la pozele încărcate (Pentru atașamente)
+// Expunem directorul de upload-uri pentru a servi imaginile statice in frontend
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Rutele
+// Inregistrarea routerelor principale
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/tickets', require('./routes/ticketRoutes'));
 app.use('/api/faqs', require('./routes/faqRoutes'));
 
-// Middleware pentru erori
+// Fallback pe middleware-ul custom de erori in locul celui HTML default de la Express
 app.use(errorHandler);
 
-// Pornim SERVERUL (HTTP + Socket.io) pe portul 5000
-server.listen(PORT, () => console.log(`Server started on port ${PORT}`.yellow.bold));
+// Atentie: Folosim server.listen in loc de app.listen pentru a lega atat HTTP cat si WSS
+server.listen(PORT, () => console.log(`Backend operativ pe portul ${PORT}`.yellow.bold));

@@ -10,7 +10,7 @@ const initialState = {
   message: '',
 }
 
-// Creare tichet nou
+// Wrapper asincron pentru dispatch-ul postarii de incident in baza
 export const createTicket = createAsyncThunk(
   'tickets/create',
   async (ticketData, thunkAPI) => {
@@ -27,7 +27,7 @@ export const createTicket = createAsyncThunk(
   }
 )
 
-// Obtine tichetele utilizatorului
+// Citirea globala cu extractie paralela din token
 export const getTickets = createAsyncThunk(
   'tickets/getAll',
   async (_, thunkAPI) => {
@@ -44,7 +44,7 @@ export const getTickets = createAsyncThunk(
   }
 )
 
-// Obtine un singur tichet
+// Fetching model single
 export const getTicket = createAsyncThunk(
   'tickets/get',
   async (ticketId, thunkAPI) => {
@@ -60,7 +60,6 @@ export const getTicket = createAsyncThunk(
   }
 )
 
-// Inchide tichet
 export const closeTicket = createAsyncThunk(
   'tickets/close',
   async (ticketId, thunkAPI) => {
@@ -76,7 +75,6 @@ export const closeTicket = createAsyncThunk(
   }
 )
 
-// Atribuie tichet
 export const assignTicket = createAsyncThunk(
   'tickets/assign',
   async (ticketId, thunkAPI) => {
@@ -90,7 +88,6 @@ export const assignTicket = createAsyncThunk(
   }
 )
 
-// Suspenda tichet
 export const suspendTicket = createAsyncThunk(
   'tickets/suspend',
   async (ticketId, thunkAPI) => {
@@ -104,13 +101,12 @@ export const suspendTicket = createAsyncThunk(
   }
 )
 
-// --- Escaladeaza Tichet (NOU) ---
+// Hook pentru transmiterea responsabilitatii catre un alt inginer IT
 export const escalateTicket = createAsyncThunk(
   'tickets/escalate',
   async ({ ticketId, targetAgentId, reason }, thunkAPI) => {
     try {
       const token = thunkAPI.getState().auth.user.token
-      // Apelam serviciul cu obiectul necesar
       return await ticketService.escalateTicket(ticketId, { targetAgentId, reason }, token)
     } catch (error) {
        const message = (error.response && error.response.data && error.response.data.message) || error.message || error.toString()
@@ -119,7 +115,7 @@ export const escalateTicket = createAsyncThunk(
   }
 )
 
-// --- Adauga Feedback ---
+// Interceptarea metadatelor pentru customer statisfaction logic
 export const addFeedback = createAsyncThunk(
   'tickets/addFeedback',
   async ({ ticketId, rating, comment }, thunkAPI) => {
@@ -203,13 +199,11 @@ export const ticketSlice = createSlice({
         state.isSuccess = true
         state.ticket = action.payload
       })
-      // --- Case Escaladare (NOU) ---
       .addCase(escalateTicket.fulfilled, (state, action) => {
         state.isLoading = false
         state.isSuccess = true
         state.ticket = action.payload 
       })
-      // --- Case Feedback ---
       .addCase(addFeedback.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;

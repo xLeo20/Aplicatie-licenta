@@ -18,18 +18,21 @@ import PageAnimation from './components/PageAnimation'
 import TicketCalendar from './pages/TicketCalendar'
 import KnowledgeBase from './pages/KnowledgeBase'
 
+// Wrapper component ce expune logica de route-matching catre plugin-ul Framer Motion
+// Asigura existenta hook-ului `useLocation` intr-un context valid.
 function AnimatedRoutes() {
   const location = useLocation();
 
   return (
+    // Folosim modul wait pentru a asigura unmount-ul componentei vechi inainte de a randa componenta noua (reduce flickerele vizuale)
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        {/* Rute Publice */}
+        
         <Route path='/' element={<PageAnimation><Home /></PageAnimation>} />
         <Route path='/login' element={<PageAnimation><Login /></PageAnimation>} />
         <Route path='/register' element={<PageAnimation><Register /></PageAnimation>} />
         
-        {/* Rute Protejate (Necesita Login) */}
+        {/* Layer-ul de protectie global pentru end-point-urile ce necesita validare JWT */}
         <Route element={<PrivateRoute />}>
             <Route path='/knowledge-base' element={<KnowledgeBase />} />
             <Route path='/dashboard' element={<PageAnimation><Dashboard /></PageAnimation>} />
@@ -41,17 +44,18 @@ function AnimatedRoutes() {
             <Route path='/calendar' element={<PageAnimation><TicketCalendar /></PageAnimation>} />
         </Route>
         
-        {/* Ruta 404 */}
+        {/* Ruta default de tip wildcard pentru handling-ul adreselor inexistente (404 HTTP Code) */}
         <Route path='*' element={<PageAnimation><NotFound /></PageAnimation>} />
       </Routes>
     </AnimatePresence>
   );
 }
 
+// Index-ul ierarhic al DOM-ului React (Main entry)
 function App() {
   return (
     <>
-      {/* NODURILE DE FUNDAL */}
+      {/* Container static injectat peste body pt efecte vizuale asincrone */}
       <div className="tech-bg">
         <div className="node"></div>
         <div className="node"></div>
@@ -60,14 +64,8 @@ function App() {
       </div>
 
       <Router>
-        {/* 'w-full' - ocupă toată lățimea
-            'flex flex-col items-center' - pune tot ce e în interior fix pe centru
-        */}
         <div className='w-full min-h-screen flex flex-col items-center'>
-          {/* Header-ul va fi și el centrat acum */}
           <Header />
-          
-          {/* AnimatedRoutes va conține paginile, care la rândul lor sunt centrate */}
           <main className='w-full flex justify-center'>
             <AnimatedRoutes />
           </main>

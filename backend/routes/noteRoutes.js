@@ -1,5 +1,6 @@
 const express = require('express');
-const router = express.Router({ mergeParams: true }); // <--- ESTE CRITIC SA FIE AICI
+// flag-ul mergeParams este necesar pentru ca acest router sa preia parametrii din ruta parinte (ex: ticketId)
+const router = express.Router({ mergeParams: true }); 
 
 const { getNotes, addNote } = require('../controllers/noteController');
 const { protect } = require('../middleware/authMiddleware');

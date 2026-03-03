@@ -2,35 +2,38 @@ const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/userModel');
 
+// Middleware pentru securizarea rutelor private. Verifica token-ul JWT la fiecare request.
 const protect = asyncHandler(async (req, res, next) => {
   let token;
 
-  // Verificam daca exista header-ul de autorizare si daca incepe cu Bearer
+  // Cautam header-ul de autorizare in formatul standard 'Bearer <token>'
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')
   ) {
     try {
-      // Obtinem token-ul din header (eliminam cuvantul Bearer)
+      // Extragem doar token-ul efectiv
       token = req.headers.authorization.split(' ')[1];
 
-      // Verificam token-ul
+      // Decodam token-ul folosind cheia secreta din environment variables
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Gasim utilizatorul pe baza ID-ului din token (fara parola)
+      // Atasam informatiile userului la request (excluzand parola pentru securitate)
+      // Astfel, in controllere putem folosi direct req.user
       req.user = await User.findById(decoded.id).select('-password');
 
       next();
     } catch (error) {
-      console.log(error);
+      console.log('Eroare validare token JWT:', error);
       res.status(401);
-      throw new Error('Nu esti autorizat');
+      throw new Error('Sesiune invalida sau expirata.');
     }
   }
 
+  // Daca nu s-a trimis niciun token in request
   if (!token) {
     res.status(401);
-    throw new Error('Nu esti autorizat, lipseste token-ul');
+    throw new Error('Acces interzis. Lipseste token-ul de autorizare.');
   }
 });
 

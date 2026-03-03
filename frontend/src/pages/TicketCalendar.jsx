@@ -7,11 +7,10 @@ import Spinner from '../components/Spinner';
 import TicketItem from '../components/TicketItem';
 import { FaCalendarAlt, FaCheckCircle } from 'react-icons/fa';
 
-// --- NOU: IMPORT SOCKET.IO ---
 import { io } from 'socket.io-client';
 const socket = io('http://localhost:5000');
-// -----------------------------
 
+// View dedicat urmaririi SLA-urilor sub forma de calendar
 function TicketCalendar() {
   const { tickets, isLoading, isSuccess } = useSelector((state) => state.tickets);
   const dispatch = useDispatch();
@@ -19,11 +18,11 @@ function TicketCalendar() {
   const [date, setDate] = useState(new Date());
   const [selectedTickets, setSelectedTickets] = useState([]);
 
-  // FETCH INIȚIAL + ASCULTARE SOCKETS PENTRU ACTUALIZARE
+  // Fetch data si instantiere WebSockets
   useEffect(() => {
     dispatch(getTickets());
 
-    // --- NOU: ASCULTARE SCHIMBĂRI TICHETE ---
+    // Ascultam payload-urile de update pentru refresh in background
     socket.on('tichet_nou_creat', () => {
         dispatch(getTickets());
     });
@@ -32,20 +31,21 @@ function TicketCalendar() {
         dispatch(getTickets());
     });
 
+    // Cleanup rutine de performanta
     return () => {
       if (isSuccess) dispatch(reset());
       socket.off('tichet_nou_creat');
       socket.off('ticketUpdated');
     };
-    // ----------------------------------------
   }, [dispatch, isSuccess]);
 
-  // Filtrare tichete la schimbarea datei sau la actualizarea listei (din socket)
+  // Modul de filtrare a tichetelor pentru data selectata curent in UI
   useEffect(() => {
     if (tickets) {
         const filtered = tickets.filter(ticket => {
             if (!ticket.deadline) return false;
             const tDate = new Date(ticket.deadline);
+            // Comparam fara delta de ora, strict pe calendar day
             return (
                 tDate.getDate() === date.getDate() &&
                 tDate.getMonth() === date.getMonth() &&
@@ -56,7 +56,8 @@ function TicketCalendar() {
     }
   }, [date, tickets]);
 
-  // Indicator vizual pentru zilele cu deadline (Dot Roșu Neon)
+  // Custom renderer pentru tile-urile bibliotecii react-calendar
+  // Injectam un punct rosu (dot) acolo unde identificam SLA breach risks
   const tileContent = ({ date, view }) => {
     if (view === 'month' && tickets) {
         const hasDeadline = tickets.some(ticket => {
@@ -84,20 +85,20 @@ function TicketCalendar() {
   return (
     <div className="w-full flex flex-col items-center px-4 py-10 animate-in fade-in duration-500">
       
-      {/* --- HEADER --- */}
+      {/* Componenta Header */}
       <div className="w-full max-w-6xl flex items-center gap-4 mb-10">
         <div className="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-2xl flex items-center justify-center text-2xl shadow-lg border border-blue-500/30">
             <FaCalendarAlt />
         </div>
         <div>
-            <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic drop-shadow-md">Calendar Deadline-uri</h1>
-            <p className="text-blue-200/50 text-sm font-medium">Monitorizare vizuală a termenelor limită</p>
+            <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic drop-shadow-md">Calendar SLA-uri</h1>
+            <p className="text-blue-200/50 text-sm font-medium">Monitorizare vizuala a termenelor limita.</p>
         </div>
       </div>
 
       <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-8">
         
-        {/* --- ZONA CALENDAR (Left) --- */}
+        {/* Renderizare Calendar Layout */}
         <div className="flex-1 bg-slate-900/60 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
             
@@ -111,17 +112,18 @@ function TicketCalendar() {
                 />
             </div>
             
+            {/* Legenda UX */}
             <div className="mt-6 flex items-center justify-center gap-2 text-white/40 text-xs uppercase tracking-widest font-bold">
                 <div className="h-2 w-2 bg-red-500 rounded-full shadow-[0_0_5px_red]"></div>
-                <span>Indică tichet activ scadent</span>
+                <span>Indica activitate logata pe acel slot</span>
             </div>
         </div>
 
-        {/* --- ZONA LISTA TICHETE (Right) --- */}
+        {/* Panou afisare array de rezultate filtrate */}
         <div className="flex-1 bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl flex flex-col h-fit min-h-[500px]">
             <div className="border-b border-white/10 pb-6 mb-6 flex justify-between items-end">
                 <div>
-                    <p className="text-blue-400 text-xs font-black uppercase tracking-widest mb-1">Selecție Dată</p>
+                    <p className="text-blue-400 text-xs font-black uppercase tracking-widest mb-1">Selectie Data</p>
                     <h2 className="text-3xl font-black text-white capitalize">
                         {date.toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </h2>
@@ -139,10 +141,11 @@ function TicketCalendar() {
                         </div>
                     ))
                 ) : (
+                    // Fallback componenta Empty State
                     <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-10">
                         <FaCheckCircle className="text-6xl text-emerald-500/50 mb-4" />
-                        <h3 className="text-xl font-bold text-white">Niciun Deadline</h3>
-                        <p className="text-blue-200/60 text-sm">Nu există tichete programate pentru această zi. Relaxează-te! ☕</p>
+                        <h3 className="text-xl font-bold text-white">Niciun Task Programat</h3>
+                        <p className="text-blue-200/60 text-sm">Graficul zilnic nu inregistreaza SLA-uri scadente astazi.</p>
                     </div>
                 )}
             </div>
@@ -150,7 +153,7 @@ function TicketCalendar() {
 
       </div>
       
-      {/* CSS CALENDAR CUSTOM */}
+      {/* Rescriere CSS global pentru a forta stilizarea pe componentele librariei React Calendar */}
       <style>{`
         .calendar-wrapper .react-calendar {
             width: 100%;

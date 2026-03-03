@@ -1,15 +1,17 @@
 import { Link } from 'react-router-dom'
 import { FaCircle } from 'react-icons/fa'
 
+// Componenta row-level folosita pentru a randa datele mapate in liste/tabele
 function TicketItem({ ticket }) {
-  // Calcul SLA
+  
+  // Analiza temporala pentru a stabili starea deadline-ului curent
   const isOverdue = new Date(ticket.deadline) < new Date() && ticket.status !== 'closed' && ticket.status !== 'suspended';
   
   const deadlineDate = new Date(ticket.deadline).toLocaleString('ro-RO', {
       day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
   });
 
-  // Badge Status Color Logic
+  // Functie de utilitate care asociaza CSS classes in functie de state-ul tichetului
   const getStatusStyle = (status) => {
     switch(status) {
         case 'new': return 'bg-blue-500/20 text-blue-200 border-blue-500/50';
@@ -20,11 +22,13 @@ function TicketItem({ ticket }) {
     }
   }
 
+  // Traductor pentru key-urile din baza de date
   const getStatusText = (status) => {
-    const texts = { new: 'Nou', open: 'În Lucru', suspended: 'Suspendat', closed: 'Închis' };
+    const texts = { new: 'Nou', open: 'In Lucru', suspended: 'Suspendat', closed: 'Inchis' };
     return texts[status] || status;
   }
 
+  // Fallback in caz de corupere id scurt pe inregistrari vechi
   const displayId = ticket.ticketId 
       ? `#${ticket.ticketId}` 
       : (ticket._id ? `#${ticket._id.substring(ticket._id.length - 4)}` : '...');
@@ -33,7 +37,7 @@ function TicketItem({ ticket }) {
     <div className="group relative bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 md:px-8 md:py-5 hover:bg-white/20 transition-all duration-300 shadow-lg mb-3">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
         
-        {/* COLOANA 1: DATA / ID - Aliniat stânga */}
+        {/* Metadate: Id si Timestamp */}
         <div className="flex flex-col text-left">
           <span className="text-lg font-black text-white tracking-tighter">{displayId}</span>
           <span className="text-[10px] text-white/50 uppercase font-bold">
@@ -41,7 +45,7 @@ function TicketItem({ ticket }) {
           </span>
         </div>
 
-        {/* COLOANA 2: TIP & CATEGORIE (MODIFICAT JIRA STYLE) */}
+        {/* Clasificare (Tipar JSM) */}
         <div className="flex flex-col text-left">
           <span className="text-white font-semibold text-sm flex items-center gap-2">
             {ticket.issueType === 'Incident' && <FaCircle className="text-red-500 text-[8px]" />}
@@ -55,7 +59,7 @@ function TicketItem({ ticket }) {
           </span>
         </div>
 
-        {/* COLOANA 3: PRIORITATE / SLA - Centrat */}
+        {/* Urgenta & Context Temporal */}
         <div className="flex flex-col items-center">
           <span className={`text-[10px] font-black px-2 py-0.5 rounded-md mb-1 border uppercase tracking-wider ${
             ticket.priority === 'Mare' ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-white/10 text-white/70 border-white/20'
@@ -64,19 +68,19 @@ function TicketItem({ ticket }) {
           </span>
           {ticket.status !== 'closed' && (
              <div className="text-[10px] font-bold text-emerald-400 whitespace-nowrap">
-                {ticket.status === 'suspended' ? 'ÎNGHEȚAT' : (new Date(ticket.deadline).toLocaleDateString('ro-RO'))}
+                {ticket.status === 'suspended' ? 'INGHETAT' : (new Date(ticket.deadline).toLocaleDateString('ro-RO'))}
              </div>
           )}
         </div>
 
-        {/* COLOANA 4: STATUS - Centrat */}
+        {/* Indicator Stare Globala */}
         <div className="flex justify-center">
           <span className={`px-4 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border ${getStatusStyle(ticket.status)}`}>
             {getStatusText(ticket.status)}
           </span>
         </div>
 
-        {/* COLOANA 5: ACȚIUNE - Aliniat dreapta */}
+        {/* Cta trigger rutare */}
         <div className="flex justify-end">
           <Link 
             to={`/ticket/${ticket._id}`} 

@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { getFaqs, createFaq, deleteFaq } = require('../controllers/faqController');
-
 const { protect } = require('../middleware/authMiddleware');
 
 router.route('/')
-    .get(protect, getFaqs)       // Citește FAQ-urile
-    .post(protect, createFaq);   // Adaugă FAQ nou
+    .get(protect, getFaqs)
+    .post(protect, createFaq);
 
 router.route('/:id')
-    .delete(protect, deleteFaq); // Șterge FAQ
+    .delete(protect, deleteFaq);
 
 module.exports = router;

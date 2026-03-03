@@ -9,4 +9,4 @@ const BackButton = ({ url }) => {
   )
 }
 
-export default BackButton // Asigură-te că această linie există!
+export default BackButton 

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 
-// Definim animatia: pagina apare usor (opacity 0 -> 1) si se misca putin in sus (y 20 -> 0)
+// Declararea obiectelor statice de stare Framer Motion pentru eficienta memoriei.
+// Asigura o tranzitie vizuala fluida prin efectul de "fade-in & slide-up" pe mounting.
 const pageVariants = {
   initial: {
     opacity: 0,
@@ -16,12 +17,14 @@ const pageVariants = {
   },
 }
 
+// Parametrii interpolarii Tween
 const pageTransition = {
   type: 'tween',
   ease: 'anticipate',
   duration: 0.5,
 }
 
+// Wrapper component ce intercepteaza elementele copil (react-router children) pentru orchestrarea animatiei intre view-uri
 const PageAnimation = ({ children }) => {
   return (
     <motion.div

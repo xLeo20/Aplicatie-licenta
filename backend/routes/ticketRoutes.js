@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer'); // <--- ADAUGAT PENTRU UPLOAD
-const path = require('path');     // <--- ADAUGAT PENTRU UPLOAD
+const multer = require('multer');
+const path = require('path');
 
 const { 
   getTickets, 
@@ -10,49 +10,48 @@ const {
   deleteTicket, 
   updateTicket,
   assignTicket,
-  suspendTicket, // <--- Importam functia noua
+  suspendTicket,
   addFeedback,
   getAgents,
   escalateTicket
 } = require('../controllers/ticketController');
 
-// --- 1. Importam router-ul de note
+// Importam router-ul de note pentru a face chaining pe rute (nested routes)
 const noteRouter = require('./noteRoutes');
-
 const { protect } = require('../middleware/authMiddleware');
 
-// --- CONFIGURARE MULTER (Pentru salvarea atașamentelor) ---
+// Configurare layer de stocare pentru fisierele trimise in tichet
 const storage = multer.diskStorage({
   destination(req, file, cb) {
-    cb(null, 'uploads/'); // Aici se vor salva fișierele
+    cb(null, 'uploads/'); 
   },
   filename(req, file, cb) {
+    // Timestamp pentru prevenirea suprascrierii fisierelor cu acelasi nume
     cb(null, `ticket-${Date.now()}${path.extname(file.originalname)}`);
   },
 });
 const upload = multer({ storage });
 
-// --- 2. Redirecționăm orice cerere care se termina in /notes catre noteRouter
+// Delegam logica pentru endpoint-ul de note catre noteRouter
 router.use('/:ticketId/notes', noteRouter);
 
-
-
-// --- RUTA PENTRU UPLOAD FIȘIER ---
-// ATENȚIE: Trebuie să stea deasupra rutei router.route('/:id')
+// Atentie: Rutele statice (cum ar fi /upload sau /agents) trebuie mereu declarate 
+// inaintea celor dinamice (/:id) pentru ca Express sa nu trateze string-ul 'upload' ca fiind un ID.
 router.post('/upload', protect, upload.single('attachment'), (req, res) => {
   if (!req.file) {
-    return res.status(400).send('Niciun fișier încărcat.');
+    return res.status(400).send('Fisier lipsa.');
   }
-  // Returnăm calea relativă către fișier pentru a o salva în baza de date
+  // Convertim slash-urile pentru compatibilitate cross-platform (ex: Windows to Linux)
   res.send(`/${req.file.path.replace(/\\/g, '/')}`);
 });
 
-// Rutele standard
+router.route('/agents').get(protect, getAgents)
+
 router.route('/')
   .get(protect, getTickets)
   .post(protect, createTicket);
 
-router.route('/agents').get(protect, getAgents)
+// Rute dinamice pe ID-ul tichetului
 router.route('/:id/escalate').put(protect, escalateTicket)
 
 router.route('/:id')
@@ -60,8 +59,9 @@ router.route('/:id')
   .delete(protect, deleteTicket)
   .put(protect, updateTicket);
 
-// Rute speciale (Assign, Suspend)
+// Endpoint-uri pentru state management-ul tichetelor
 router.put('/:id/assign', protect, assignTicket);
 router.put('/:id/suspend', protect, suspendTicket);
 router.route('/:id/feedback').post(protect, addFeedback)
+
 module.exports = router;

@@ -1,7 +1,8 @@
 const nodemailer = require('nodemailer')
 
+// Serviciu de trimitere mailuri folosind arhitectura SMTP
 const sendEmail = async (options) => {
-  // 1. Configurare Transporter (curierul)
+  
   const transporter = nodemailer.createTransport({
     service: process.env.EMAIL_SERVICE,
     auth: {
@@ -10,15 +11,14 @@ const sendEmail = async (options) => {
     },
   })
 
-  // 2. Definire opțiuni email
+  // Permitem injectarea de template-uri HTML pentru o prezentare curata catre client
   const mailOptions = {
     from: `Support Ticketing <${process.env.EMAIL_FROM}>`,
     to: options.to,
     subject: options.subject,
-    html: options.html, // Folosim HTML pentru design frumos
+    html: options.html, 
   }
 
-  // 3. Trimitere efectivă
   await transporter.sendMail(mailOptions)
 }
 

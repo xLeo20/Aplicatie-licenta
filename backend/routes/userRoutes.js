@@ -10,27 +10,26 @@ const {
   updateUser,
   upload,             
   uploadProfilePhoto, 
-  changePassword      // <--- Importul funcției de parolă
+  changePassword      
 } = require('../controllers/userController');
 
 const { protect } = require('../middleware/authMiddleware'); 
 
-// Rute publice
+// Rute publice (auth bypass)
 router.post('/', registerUser);
 router.post('/login', loginUser);
 
-// Rute private (User Logat)
+// Rute private (necesita token valid)
 router.get('/me', protect, getMe);
 router.post('/upload', protect, upload.single('image'), uploadProfilePhoto);
 
-// --- RUTA PENTRU PAROLĂ TREBUIE SĂ FIE AICI (Deasupra celei cu :id) ---
+// Trebuie declarata deasupra rutei PUT /:id pentru a preveni matching-ul gresit
 router.put('/change-password', protect, changePassword); 
-// ---------------------------------------------------------------------
 
-// Rute de Admin
+// Rute destinate exclusiv administrarii platformei
 router.get('/all', protect, getAllUsers); 
 router.post('/add', protect, createUser);   
-router.put('/:id', protect, updateUser);    // <--- Express se bloca aici înainte!
+router.put('/:id', protect, updateUser);    
 router.delete('/:id', protect, deleteUser); 
 
 module.exports = router;

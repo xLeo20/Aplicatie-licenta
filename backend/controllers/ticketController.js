@@ -5,55 +5,54 @@ const Ticket = require('../models/ticketModel');
 const Note = require('../models/noteModel');
 const sendEmail = require('../utils/sendEmail'); 
 
-
-// @desc    Preia tichetele
+// @desc    Preia lista de tichete (filtrata pe rol)
 // @route   GET /api/tickets
 const getTickets = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) {
     res.status(401);
-    throw new Error('Utilizatorul nu a fost gasit');
+    throw new Error('Autentificare invalida');
   }
 
   let tickets;
+  // Daca este administrator sau agent IT, primeste toata lista de tichete din sistem
   if (user.role === 'agent' || user.role === 'admin') {
     tickets = await Ticket.find({}).sort({ createdAt: -1 }); 
   } else {
+  // Daca e utilizator simplu, extragem doar solicitarile lui
     tickets = await Ticket.find({ user: req.user.id }).sort({ createdAt: -1 });
   }
   res.status(200).json(tickets);
 });
 
-// @desc    Create new ticket
+// @desc    Crearea unui incident/tichet nou
 // @route   POST /api/tickets
-// @access  Private
 const createTicket = asyncHandler(async (req, res) => {
-  // MODIFICARE: Preluam noile campuri in loc de product
   const { issueType, category, description, priority, attachment } = req.body;
 
   if (!issueType || !category || !description) {
     res.status(400);
-    throw new Error('Te rugam sa completezi toate campurile obligatorii');
+    throw new Error('Validare esuata. Nu poti crea un tichet gol.');
   }
 
   const user = await User.findById(req.user.id);
   if (!user) {
     res.status(401);
-    throw new Error('User not found');
+    throw new Error('Sesiune expirata');
   }
 
+  // Generam un ID scurt vizual de genul #1, #2 pt a fi mai usor de retinut decat _id-ul de mongo
   const lastTicket = await Ticket.findOne().sort({ ticketId: -1 });
   const newTicketId = lastTicket && lastTicket.ticketId ? lastTicket.ticketId + 1 : 1;
 
+  // Calculam target-urile pentru SLA. Rezolvare in 24h, Preluare in 10m
   const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  
-  // Setare Deadline Preluare (10 minute)
   const pickupDeadline = new Date(Date.now() + 10 * 60 * 1000);
 
   const ticket = await Ticket.create({
     ticketId: newTicketId,  
-    issueType, // Salvam campul nou
-    category,  // Salvam campul nou
+    issueType, 
+    category,  
     description,
     priority,
     user: req.user.id,
@@ -63,70 +62,69 @@ const createTicket = asyncHandler(async (req, res) => {
     attachment: attachment || null, 
   });
 
-  // --- SOCKET.IO - Anunțăm toți clienții conectați că a apărut un tichet nou ---
+  // Notificam dashboard-urile active ca a intrat o solicitare noua
   const io = req.app.get('io');
   if (io) {
     io.emit('tichet_nou_creat', ticket);
-    // Emitem și ticketUpdated pentru a forța refresh-ul listelor pe dashboard
     io.emit('ticketUpdated'); 
   }
-  // ---------------------------------------------------------------------------------
 
-  // --- EMAIL CONFIRMARE CREARE ---
+  // Procesam trimiterea de email non-blocant, pentru a nu prelungi loading-ul pe frontend
   try {
     const message = `
       <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
         <div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px;">
           <h2 style="color: #333;">Salut ${user.name},</h2>
-          <p>Tichetul tău a fost înregistrat cu succes!</p>
+          <p>Tichetul tau a fost inregistrat in sistem cu succes!</p>
           <div style="background-color: #e8f0fe; padding: 15px; border-left: 5px solid #0056b3; margin: 20px 0;">
-            <p><strong>ID Tichet:</strong> #${ticket.ticketId}</p>
-            <p><strong>Tip Solicitare:</strong> ${ticket.issueType}</p>
-            <p><strong>Categorie:</strong> ${ticket.category}</p>
-            <p><strong>Prioritate:</strong> ${ticket.priority}</p>
+            <p><strong>Numar Tichet:</strong> #${ticket.ticketId}</p>
+            <p><strong>Tipul Problemei:</strong> ${ticket.issueType}</p>
+            <p><strong>Arie/Categorie:</strong> ${ticket.category}</p>
+            <p><strong>Prioritate Setata:</strong> ${ticket.priority}</p>
           </div>
-          <p>Un agent va prelua solicitarea ta în cel mai scurt timp.</p>
-          <p style="font-size: 12px; color: #888;">Mulțumim, Echipa Support</p>
+          <p>Un reprezentant al echipei tehnice va investiga situatia in curand.</p>
+          <p style="font-size: 12px; color: #888;">Serviciul de Suport Intern</p>
         </div>
       </div>
     `
     await sendEmail({
       to: user.email,
-      subject: `Confirmare Tichet #${ticket.ticketId}`,
+      subject: `Confirmare Deschidere Tichet #${ticket.ticketId}`,
       html: message,
     })
   } catch (error) {
-    console.log('Eroare trimitere email confirmare:', error)
+    console.log('Sistemul de mail a intampinat o eroare:', error)
   }
-  // -------------------------------
 
   res.status(201).json(ticket);
 });
 
-// @desc    Preia un singur tichet
+// @desc    Preia informatiile complete ale unui singur tichet
 // @route   GET /api/tickets/:id
 const getTicket = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) {
     res.status(401);
-    throw new Error('Utilizatorul nu a fost găsit');
+    throw new Error('Utilizator inexistent');
   }
 
+  // Populam AssignedTo pt a vedea direct numele agentului in frontend
   const ticket = await Ticket.findById(req.params.id).populate('assignedTo', 'name email');
 
   if (!ticket) {
     res.status(404);
-    throw new Error('Tichetul nu a fost găsit');
+    throw new Error('Tichetul nu exista in baza de date.');
   }
 
+  // Regula de acces limitat
   if (ticket.user.toString() !== req.user.id && user.role !== 'agent' && user.role !== 'admin') {
     res.status(401);
-    throw new Error('Neautorizat');
+    throw new Error('Incercare de acces interzisa pe acest document.');
   }
   res.status(200).json(ticket);
 });
 
-// @desc    Delete Ticket
+// @desc    Sterge tichet
 // @route   DELETE /api/tickets/:id
 const deleteTicket = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
@@ -134,27 +132,26 @@ const deleteTicket = asyncHandler(async (req, res) => {
 
   if (!ticket) {
     res.status(404);
-    throw new Error('Tichetul nu a fost găsit');
+    throw new Error('Nu s-a gasit tichetul.');
   }
 
+  // Politica de retentie: doara dministratorii sterg definitv
   if (ticket.user.toString() !== req.user.id && user.role !== 'admin') {
     res.status(401);
-    throw new Error('Neautorizat');
+    throw new Error('Ai nevoie de rol de admin pentru a sterge date logate.');
   }
 
   await ticket.deleteOne();
 
-  // --- NOU: SOCKET IO PENTRU STERGERE ---
   const io = req.app.get('io');
   if (io) {
-    io.emit('ticketUpdated'); // Transmitem semnal pentru a dispărea din liste instant
+    io.emit('ticketUpdated'); 
   }
-  // --------------------------------------
 
   res.status(200).json({ success: true });
 });
 
-// @desc    Update Ticket
+// @desc    Modificarea directa a unui tichet (Update)
 // @route   PUT /api/tickets/:id
 const updateTicket = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
@@ -162,12 +159,12 @@ const updateTicket = asyncHandler(async (req, res) => {
 
   if (!ticket) {
     res.status(404);
-    throw new Error('Tichetul nu a fost găsit');
+    throw new Error('Nu a fost gasit id-ul acestui tichet.');
   }
 
   if (ticket.user.toString() !== req.user.id && user.role !== 'agent' && user.role !== 'admin') {
     res.status(401);
-    throw new Error('Neautorizat');
+    throw new Error('Actiune permisa doar echipei operationale.');
   }
 
   const updatedTicket = await Ticket.findByIdAndUpdate(
@@ -176,106 +173,100 @@ const updateTicket = asyncHandler(async (req, res) => {
     { new: true }
   );
 
-  // --- NOU: SOCKET IO PENTRU ACTUALIZARE (Editare din modal de ex) ---
   const io = req.app.get('io');
   if (io) {
     io.emit('ticketUpdated', updatedTicket);
   }
-  // -------------------------------------------------------------------
 
   res.status(200).json(updatedTicket);
 });
 
-// @desc    Assign Ticket
+// @desc    Asignare tichet catre agentul logat
 // @route   PUT /api/tickets/:id/assign
 const assignTicket = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id); // Agentul care preia
+  const user = await User.findById(req.user.id); 
   const ticket = await Ticket.findById(req.params.id);
 
   if (!ticket) {
     res.status(404);
-    throw new Error('Tichetul nu a fost gasit');
+    throw new Error('Tichet eronat');
   }
 
   if (user.role !== 'agent' && user.role !== 'admin') {
       res.status(401);
-      throw new Error('Doar staff-ul poate prelua tichete');
+      throw new Error('End-userii nu pot prelua task-uri.');
   }
 
-  // Actualizăm tichetul
+  // Schimbam statusul din New in Open si alocam Id-ul agentului
   const updatedTicket = await Ticket.findByIdAndUpdate(
     req.params.id,
     { status: 'open', assignedTo: user.id },
     { new: true }
-  ).populate('assignedTo', 'name email'); // IMPORTANT: populam la fel cum faci manual daca e cazul pe front
+  ).populate('assignedTo', 'name email'); 
 
-  // --- NOU: LOG DE SISTEM PENTRU PRELUARE ---
+  // Generam o intrare de sistem tip log pentru auditul actiunii
   const note = await Note.create({
-    text: `A preluat acest tichet. Statusul a devenit "În Lucru".`,
+    text: `A preluat in mod oficial acest tichet. Status setat: In Lucru.`,
     isStaff: true,
     staffId: user.id,
     ticket: req.params.id,
     user: user.id,
-    isSystem: true // Marchează nota ca fiind acțiune de sistem
+    isSystem: true 
   });
-  // ------------------------------------------
 
-  // --- NOU: SOCKET IO PENTRU PRELUARE ---
   const io = req.app.get('io');
   if (io) {
-    io.emit('ticketUpdated', updatedTicket); // Tabelele se dau pe 'open' si isi iau agentul
-    io.emit('noteAdded', note);              // Se adauga nota sistem in chat instantaneu
+    io.emit('ticketUpdated', updatedTicket); 
+    io.emit('noteAdded', note);              
   }
-  // --------------------------------------
 
-  // --- LOGICA EMAIL PRELUARE ---
+  // Trimitem email catre utilizatorul final ca problema a fost observata
   try {
     const clientUser = await User.findById(ticket.user);
 
     if (clientUser) {
       const message = `
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-          <h2 style="color: #0056b3;">Salut ${clientUser.name},</h2>
-          <p>Vești bune! Tichetul tău <strong>#${ticket.ticketId || ticket._id}</strong> a fost preluat.</p>
+          <h2 style="color: #0056b3;">Buna ${clientUser.name},</h2>
+          <p>Solicitarea ta cu ID-ul <strong>#${ticket.ticketId || ticket._id}</strong> a fost validata.</p>
           
           <div style="background-color: #e6fffa; padding: 15px; border-left: 5px solid #00b39f; margin: 20px 0;">
-            <p><strong>Agent Responsabil:</strong> ${user.name}</p>
-            <p><strong>Status Nou:</strong> În Lucru (Open)</p>
+            <p><strong>A fost desemnat agentul:</strong> ${user.name}</p>
+            <p><strong>Stadiu curent:</strong> Preluat pentru investigare (Open)</p>
           </div>
 
-          <p>Agentul analizează solicitarea și va reveni cu un răspuns în curând.</p>
+          <p>Vei fi notificat de indata ce avem un raspuns sau o rezolutie.</p>
           <br/>
-          <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Vezi Tichetul</a>
+          <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Status Live Aplicatie</a>
         </div>
       `;
 
       await sendEmail({
         to: clientUser.email,
-        subject: `Tichet Preluat: #${ticket.ticketId || ticket._id}`,
+        subject: `Notificare Preluare Tichet #${ticket.ticketId || ticket._id}`,
         html: message,
       });
     }
   } catch (error) {
-    console.log('Eroare trimitere email preluare:', error);
+    console.log('Eroare mail notificare de asignare:', error);
   }
-  // -----------------------------
 
   res.status(200).json(updatedTicket);
 });
 
-// @desc    Suspend Ticket
+// @desc    Pauzarea SLA-ului si trecerea in stare de asteptare
 const suspendTicket = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user.id);
     const ticket = await Ticket.findById(req.params.id);
 
     if (!ticket) {
         res.status(404);
-        throw new Error('Tichetul nu a fost găsit');
+        throw new Error('Lipsa date tichet');
     }
 
     if (ticket.user.toString() !== req.user.id && user.role !== 'admin' && user.role !== 'agent') {
         res.status(401);
-        throw new Error('Nu ești autorizat');
+        throw new Error('Operatiune interzisa');
     }
 
     const updatedTicket = await Ticket.findByIdAndUpdate(
@@ -284,46 +275,41 @@ const suspendTicket = asyncHandler(async (req, res) => {
         { new: true }
     );
 
-    // --- NOU: LOG DE SISTEM PENTRU SUSPENDARE ---
     const note = await Note.create({
-        text: `A schimbat statusul tichetului în "Suspendat".`,
+        text: `Acest tichet a fost blocat temporar (Status: Suspendat). Motiv: asteptare feedback tert sau piese de schimb.`,
         isStaff: user.role === 'agent' || user.role === 'admin',
         staffId: user.id,
         ticket: req.params.id,
         user: user.id,
         isSystem: true 
     });
-    // --------------------------------------------
 
-    // --- NOU: SOCKET IO PENTRU SUSPENDARE ---
     const io = req.app.get('io');
     if (io) {
       io.emit('ticketUpdated', updatedTicket); 
       io.emit('noteAdded', note); 
     }
-    // ----------------------------------------
 
     res.status(200).json(updatedTicket);
 });
 
-// @desc    Close Ticket
+// @desc    Marcarea procedurii ca fiind finalizata (Closed)
 // @route   PUT /api/tickets/:id/close
 const closeTicket = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user.id);
     const ticket = await Ticket.findById(req.params.id);
 
-    // Preluăm textul soluției dacă a fost trimis de pe frontend
+    // Permitem transmiterea unui text explicativ la inchidere din modal
     const { resolutionText } = req.body;
 
     if (!ticket) {
         res.status(404);
-        throw new Error('Tichetul nu a fost găsit');
+        throw new Error('Document invalid');
     }
 
-    // Permitem închiderea doar proprietarului SAU agentului/adminului
     if (ticket.user.toString() !== req.user.id && user.role !== 'agent' && user.role !== 'admin') {
         res.status(401);
-        throw new Error('Nu ești autorizat');
+        throw new Error('Incalcare permisiuni');
     }
 
     const updatedTicket = await Ticket.findByIdAndUpdate(
@@ -332,71 +318,67 @@ const closeTicket = asyncHandler(async (req, res) => {
         { new: true }
     );
 
-    // --- NOU: LOG DE SISTEM PENTRU ÎNCHIDERE ---
+    // Log de sistem pentru marcarea solutiei
     const note = await Note.create({
-        text: resolutionText ? `Soluție / Rezolvare: ${resolutionText}` : `A închis acest tichet.`,
+        text: resolutionText ? `Rezolutie furnizata: ${resolutionText}` : `Interventie tehnica incheiata.`,
         isStaff: user.role === 'agent' || user.role === 'admin',
         staffId: user.id,
         ticket: req.params.id,
         user: user.id,
         isSystem: true 
     });
-    // -------------------------------------------
 
-    // --- NOU: SOCKET IO PENTRU ÎNCHIDERE ---
     const io = req.app.get('io');
     if (io) {
       io.emit('ticketUpdated', updatedTicket); 
       io.emit('noteAdded', note); 
     }
-    // ---------------------------------------
 
-    // --- LOGICA EMAIL ÎNCHIDERE & FEEDBACK ---
+    // Informam automat angajatul ca si-a primit rezolvarea si ii cerem un rating CSAT
     try {
       const ticketOwner = await User.findById(ticket.user);
 
       if (ticketOwner) {
-        // Construim partea de HTML pentru soluție doar dacă există text
+        // Bloc if conditionally pentru stilizare mail 
         const solutionHtml = resolutionText 
           ? `<div style="background-color: #d4edda; border-left: 5px solid #28a745; padding: 15px; margin: 20px 0; color: #155724;">
-               <h3 style="margin-top:0;">Soluție / Rezolvare:</h3>
+               <h3 style="margin-top:0;">Solutie oferita de tehnician:</h3>
                <p style="font-size: 16px; white-space: pre-wrap;">${resolutionText}</p>
              </div>` 
           : '';
 
         const message = `
           <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-            <h2 style="color: #333;">Salut ${ticketOwner.name},</h2>
-            <p>Tichetul tău <strong>#${ticket.ticketId || ticket._id}</strong> a fost marcat ca <strong>REZOLVAT</strong>.</p>
+            <h2 style="color: #333;">Buna ziua ${ticketOwner.name},</h2>
+            <p>Conform bazei noastre de date, incidentul <strong>#${ticket.ticketId || ticket._id}</strong> a primit statusul de <strong>FINALIZAT</strong>.</p>
             
             ${solutionHtml}
             
-            <p>Sperăm că am reușit să te ajutăm! Te rugăm să ne acorzi 30 de secunde pentru a evalua interacțiunea.</p>
+            <p>Parerea ta ne ajuta sa optimizam procedurile de suport. Ofera-ne un mic feedback!</p>
             
             <br/>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px;">Lasă un Feedback ⭐</a>
+              <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px;">Acorda o nota ⭐</a>
             </div>
             
-            <p style="font-size: 12px; color: #888;">Dacă problema persistă, te rugăm să deschizi un tichet nou.</p>
+            <p style="font-size: 12px; color: #888;">Acest mesaj a fost generat automat.</p>
           </div>
         `;
 
         await sendEmail({
           to: ticketOwner.email,
-          subject: `Tichet Rezolvat: #${ticket.ticketId || ticket._id}`,
+          subject: `Notificare Inchidere: Tichet #${ticket.ticketId || ticket._id}`,
           html: message,
         });
       }
     } catch (error) {
-      console.log('Email closed notification failed:', error)
+      console.log('Notificarea post-rezolvare nu s-a trimis:', error)
     }
-    // ---------------------------------------------
 
     res.status(200).json(updatedTicket);
 });
 
-// @desc    Add feedback to ticket
+// @desc    Salvare Customer Satisfaction (CSAT Rating)
 // @route   POST /api/tickets/:id/feedback
 // @access  Private
 const addFeedback = asyncHandler(async (req, res) => {
@@ -406,18 +388,18 @@ const addFeedback = asyncHandler(async (req, res) => {
 
   if (!ticket) {
     res.status(404)
-    throw new Error('Ticket not found')
+    throw new Error('Inregistrare lipsa')
   }
 
+  // Prevenim acordarea de note din partea altor conturi (impersonare)
   if (ticket.user.toString() !== req.user.id) {
     res.status(401)
-    throw new Error('Not Authorized')
+    throw new Error('Poti da feedback strict la propriile tichete')
   }
 
-  // Opțional: Permite feedback doar dacă tichetul e închis
   if (ticket.status !== 'closed') {
       res.status(400)
-      throw new Error('Puteți oferi feedback doar tichetelor închise.')
+      throw new Error('Sistemul accepta review-uri doar pentru sarcini finalizate (Status: Inchise)')
   }
 
   ticket.feedback = {
@@ -428,26 +410,25 @@ const addFeedback = asyncHandler(async (req, res) => {
 
   await ticket.save()
 
-  // --- NOU: SOCKET IO PENTRU RATING (Sa apara ratingul instant in lista de tickete a adminului) ---
+  // Pus pentru reactualizarea imediata in pagina admin-ului la zona de statistici
   const io = req.app.get('io');
   if (io) {
     io.emit('ticketUpdated', ticket);
   }
-  // ------------------------------------------------------------------------------------------------
 
   res.status(200).json(ticket)
 });
 
-// @desc    Preia toți agenții pentru escaladare
+// @desc    Preia lista ingustata a agentilor tehnici din firma
 // @route   GET /api/tickets/agents
 // @access  Private
 const getAgents = asyncHandler(async (req, res) => {
-    // Căutăm toți userii care au rolul de agent sau admin
+    // Returnam orice user de nivel operativ fara sa scurgem parole in retea
     const users = await User.find({ role: { $in: ['agent', 'admin'] } }).select('-password');
     res.status(200).json(users);
 });
 
-// @desc    Escaladează tichetul către alt agent
+// @desc    Pasarea responsabilitatii catre un Tier superior
 // @route   PUT /api/tickets/:id/escalate
 // @access  Private
 const escalateTicket = asyncHandler(async (req, res) => {
@@ -457,30 +438,30 @@ const escalateTicket = asyncHandler(async (req, res) => {
 
     if (!ticket) {
         res.status(404);
-        throw new Error('Tichetul nu a fost găsit');
+        throw new Error('Referinta lipsa');
     }
 
     if (user.role !== 'agent' && user.role !== 'admin') {
         res.status(401);
-        throw new Error('Doar staff-ul poate escalada tichete');
+        throw new Error('Functionalitate limitata angajatilor');
     }
 
     const targetAgent = await User.findById(targetAgentId);
     if (!targetAgent) {
         res.status(404);
-        throw new Error('Agentul selectat nu există');
+        throw new Error('Contul colegului nu a putut fi extras');
     }
 
-    // Actualizăm tichetul cu noul agent
+    // Suprascriem vechiul AssignedTo cu ID-ul noului rezolvitor
     const updatedTicket = await Ticket.findByIdAndUpdate(
         req.params.id,
         { assignedTo: targetAgentId, status: 'open' },
         { new: true }
     ).populate('assignedTo', 'name email');
 
-    // Salvăm acțiunea în Istoric (Audit Log)
+    // Salvam istoricul transferului pentru a asigura trasabilitatea procedurii
     const note = await Note.create({
-        text: `A escaladat tichetul către ${targetAgent.name}. Motiv: ${reason || 'Nespecificat'}`,
+        text: `Nivelul de suport a fost escaladat catre tehnicianul ${targetAgent.name}. Explicatie furnizata: ${reason || 'Standard transfer'}`,
         isStaff: true,
         staffId: user.id,
         ticket: req.params.id,
@@ -488,48 +469,46 @@ const escalateTicket = asyncHandler(async (req, res) => {
         isSystem: true 
     });
 
-    // --- NOU: SOCKET IO PENTRU ESCALADARE ---
     const io = req.app.get('io');
     if (io) {
       io.emit('ticketUpdated', updatedTicket); 
       io.emit('noteAdded', note); 
     }
-    // ----------------------------------------
 
-    // Trimitem email noului agent pentru a-l notifica
+    // Alerta directa prin mail catre agentul nou implicat ca sa nu intarzie SLA-ul
     try {
         const message = `
             <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-                <h2 style="color: #0056b3;">Salut ${targetAgent.name},</h2>
-                <p>Un tichet a fost escaladat către tine de către colegul tău, <strong>${user.name}</strong>.</p>
+                <h2 style="color: #0056b3;">Salutari ${targetAgent.name},</h2>
+                <p>O cerere de suport ti-a fost direct delegata in sistem de catre <strong>${user.name}</strong>.</p>
                 <div style="background-color: #fff3cd; padding: 15px; border-left: 5px solid #ffc107; margin: 20px 0;">
-                    <p><strong>Motiv escaladare:</strong> ${reason || 'Nespecificat'}</p>
+                    <p><strong>Nota interna transfer:</strong> ${reason || 'Fară mesaj'}</p>
                 </div>
                 <br/>
-                <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Preia Tichetul</a>
+                <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Investigheaza Cazul</a>
             </div>
         `;
         await sendEmail({
             to: targetAgent.email,
-            subject: `⚠️ Tichet Escaladat: #${ticket.ticketId || ticket._id}`,
+            subject: `⚠️ Necesita Atentie - Escaladare Crt. #${ticket.ticketId || ticket._id}`,
             html: message,
         });
     } catch (error) {
-        console.log('Eroare trimitere email escaladare:', error);
+        console.log('Transfer email eroare:', error);
     }
 
     res.status(200).json(updatedTicket);
 });
 
-// @desc    Upload Fisier Tichet
+// @desc    Management-ul documentelor anexate (Upload img)
 // @route   POST /api/tickets/upload
 // @access  Private
 const uploadTicketFile = asyncHandler(async (req, res) => {
     if (!req.file) {
         res.status(400);
-        throw new Error('Niciun fișier încărcat');
+        throw new Error('Payload-ul nu contine fisiere binare');
     }
-    // Returnăm calea fișierului pentru a fi salvată în tichet
+    // Convertim formatul caii statice pentru a putea fi randata pe interfata
     res.send(`/${req.file.path.replace(/\\/g, '/')}`);
 });
 
@@ -545,5 +524,5 @@ module.exports = {
   addFeedback,
   getAgents,
   escalateTicket,
-  uploadTicketFile // Trebuie sa existe aici!
+  uploadTicketFile
 };

@@ -1,8 +1,9 @@
 import axios from 'axios'
 
-const API_URL = '/api/tickets/' // Am schimbat in cale relativa pentru proxy, sau lasa http://localhost:5000/api/tickets/ daca nu folosesti proxy
+// Folosim calea relativa pentru a lasa config-ul de proxy sa preia adresa absoluta pe medii de dev
+const API_URL = '/api/tickets/' 
 
-// Creare tichet nou
+// Initializeaza o instanta noua de incident
 const createTicket = async (ticketData, token) => {
   const config = {
     headers: {
@@ -15,7 +16,7 @@ const createTicket = async (ticketData, token) => {
   return response.data
 }
 
-// Obtine tichetele utilizatorului
+// Interogare bulk pentru maparea tabelelor
 const getTickets = async (token) => {
   const config = {
     headers: {
@@ -28,7 +29,7 @@ const getTickets = async (token) => {
   return response.data
 }
 
-// Obtine un singur tichet
+// Extragerea topologiei unui document izolat
 const getTicket = async (ticketId, token) => {
   const config = {
     headers: {
@@ -41,7 +42,7 @@ const getTicket = async (ticketId, token) => {
   return response.data
 }
 
-// Inchide tichetul
+// Comutarea statului final al obiectului la 'Closed'
 const closeTicket = async (ticketId, token) => {
   const config = {
     headers: {
@@ -58,20 +59,21 @@ const closeTicket = async (ticketId, token) => {
   return response.data
 }
 
-// Atribuie tichetul
+// Actiune de preluare/asumare (Assignation flow)
 const assignTicket = async (ticketId, token) => {
   const config = { headers: { Authorization: `Bearer ${token}` } }
   const response = await axios.put(API_URL + ticketId + '/assign', {}, config)
   return response.data
 }
 
-// --- Suspendă tichetul (NOU) ---
+// Inghetarea target-ului SLA 
 const suspendTicket = async (ticketId, token) => {
   const config = { headers: { Authorization: `Bearer ${token}` } }
   const response = await axios.put(API_URL + ticketId + '/suspend', {}, config)
   return response.data
 }
 
+// Postarea ratingului in sistemul CSAT legat de ID
 const addFeedback = async (ticketId, feedbackData, token) => {
   const config = {
     headers: {
@@ -88,6 +90,7 @@ const addFeedback = async (ticketId, feedbackData, token) => {
   return response.data
 }
 
+// Functie de transfer autoritate (Tier 1 spre Tier 2 support)
 const escalateTicket = async (ticketId, escalateData, token) => {
   const config = {
     headers: { Authorization: `Bearer ${token}` },
@@ -102,8 +105,8 @@ const ticketService = {
   getTicket,
   closeTicket,
   assignTicket,
-  suspendTicket, // <--- Exportam
-  addFeedback, // <--- Exportam
+  suspendTicket, 
+  addFeedback, 
   escalateTicket
 }
 

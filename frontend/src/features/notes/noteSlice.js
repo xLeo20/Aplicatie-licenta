@@ -9,7 +9,7 @@ const initialState = {
   message: '',
 }
 
-// Obține notele tichetului
+// Actiune asincrona pentru hidratarea timeline-ului din DB
 export const getNotes = createAsyncThunk(
   'notes/getAll',
   async (ticketId, thunkAPI) => {
@@ -25,13 +25,13 @@ export const getNotes = createAsyncThunk(
   }
 )
 
-// Creează o notă (ACTUALIZAT PENTRU ATAȘAMENTE)
+// Actiune asincrona ce face push noului mesaj in array-ul din frontend
 export const createNote = createAsyncThunk(
   'notes/create',
   async (noteData, thunkAPI) => {
     try {
       const token = thunkAPI.getState().auth.user.token
-      // Pasăm întregul obiect noteData (care conține și textul și poza)
+      // Transmitem intreg payload-ul pentru a acoperi si tratarea imaginilor
       return await noteService.createNote(noteData, token)
     } catch (error) {
       const message =
@@ -48,6 +48,7 @@ export const noteSlice = createSlice({
   reducers: {
     reset: (state) => initialState,
   },
+  // Managementul ciclului de viata (pending/fulfilled/rejected) pentru o tranzitie lina de stat
   extraReducers: (builder) => {
     builder
       .addCase(getNotes.pending, (state) => {
@@ -66,7 +67,7 @@ export const noteSlice = createSlice({
       .addCase(createNote.fulfilled, (state, action) => {
         state.isLoading = false
         state.isSuccess = true
-        // Adăugăm noua notă în listă imediat, ca să apară pe ecran
+        // Evitam necesitatea unui nou GET request prin mutarea state-ului local imediat
         state.notes.push(action.payload)
       })
       .addCase(createNote.rejected, (state, action) => {
@@ -77,6 +78,5 @@ export const noteSlice = createSlice({
   },
 })
 
-// Exportăm corect acțiunile și reducer-ul (Aici era greșeala ta cu notesSlice)
 export const { reset } = noteSlice.actions
 export default noteSlice.reducer

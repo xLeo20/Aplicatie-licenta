@@ -5,7 +5,7 @@ function NoteItem({ note, onImageClick }) {
   const { user } = useSelector((state) => state.auth)
 
   // -------------------------------------------------------------
-  // 1. RENDER PENTRU MESAJE DE SISTEM (AUDIT LOG / HISTORY)
+  // Randare specifica pentru entry-urile din Audit Log generate automat de catre actiunile in sistem (isSystem = true)
   // -------------------------------------------------------------
   if (note.isSystem) {
     return (
@@ -24,16 +24,17 @@ function NoteItem({ note, onImageClick }) {
   }
 
   // -------------------------------------------------------------
-  // 2. RENDER PENTRU MESAJE NORMALE (CHAT) - Acesta este codul tau existent modificat stilistic
+  // Randare UI standard pentru nodurile de conversatie umane (Chat UI Style)
   // -------------------------------------------------------------
   const isAgent = note.isStaff
+  // Comparam adresa referintei sau entitatea propriu-zisa pentru a stabili directia alinierii CSS
   const isCurrentUser = user && user._id === (note.user?._id || note.user)
 
   return (
     <div className={`flex w-full ${isAgent ? 'justify-start' : 'justify-end'} mb-6`}>
       <div className={`flex flex-col max-w-[80%] ${isAgent ? 'items-start' : 'items-end'}`}>
         
-        {/* Nume si Rol */}
+        {/* Identificator Meta (Nume + Badge Rol) */}
         <div className="flex items-center gap-2 mb-1 px-2">
           {isAgent ? (
             <>
@@ -48,7 +49,7 @@ function NoteItem({ note, onImageClick }) {
           )}
         </div>
 
-        {/* Bula de chat */}
+        {/* Container Payload Text */}
         <div className={`p-4 rounded-2xl shadow-lg relative ${
           isAgent 
             ? 'bg-slate-800 border border-blue-500/20 text-white rounded-tl-none' 
@@ -56,14 +57,14 @@ function NoteItem({ note, onImageClick }) {
         }`}>
           <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{note.text}</p>
           
-          {/* Atasament (Daca exista) */}
+          {/* Randare conditionata pentru fisiere atasate la acest nod */}
           {note.attachment && (
               <div className="mt-4 border-t border-white/10 pt-3">
                   <div 
                       className="relative group cursor-pointer w-48 rounded-xl overflow-hidden shadow-md bg-black"
                       onClick={() => onImageClick && onImageClick(`http://localhost:5000${note.attachment}`)}
                   >
-                      <img src={`http://localhost:5000${note.attachment}`} alt="Atasament Notă" className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" />
+                      <img src={`http://localhost:5000${note.attachment}`} alt="Atasament fisier" className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" />
                       <div className="absolute inset-0 bg-blue-900/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <FaSearchPlus className="text-white text-2xl drop-shadow-md" />
                       </div>
@@ -72,7 +73,7 @@ function NoteItem({ note, onImageClick }) {
           )}
         </div>
 
-        {/* Data */}
+        {/* Timestamp */}
         <div className="text-[10px] text-slate-500 mt-1 px-2 font-medium">
           {new Date(note.createdAt).toLocaleString('ro-RO')}
         </div>

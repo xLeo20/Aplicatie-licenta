@@ -1,3 +1,4 @@
+// Componenta fallback pentru Suspense/Loading states
 function Spinner() {
   return (
     <div className='loadingSpinnerContainer' style={{ position: 'fixed', top: '0', right: '0', bottom: '0', left: '0', backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: '5000', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
