@@ -3,11 +3,12 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { 
     FaTicketAlt, FaExclamationCircle, FaCheckDouble, 
-    FaFolderOpen, FaChartPie, FaFireAlt, FaRegClock
+    FaFolderOpen, FaChartPie, FaFireAlt, FaRegClock, FaChartLine
 } from 'react-icons/fa';
 import { 
     PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
-    CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+    CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    LineChart, Line
 } from 'recharts';
 import { getTickets } from '../../features/tickets/ticketSlice';
 import Spinner from '../Spinner';
@@ -22,10 +23,8 @@ function AgentDashboard() {
   const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // Initial fetch al cozii de tichete
     dispatch(getTickets());
 
-    // Setam ascultatorii de socket pentru real-time update pe dashboard
     socket.on('tichet_nou_creat', () => {
         dispatch(getTickets()); 
     });
@@ -40,7 +39,6 @@ function AgentDashboard() {
     };
   }, [dispatch]);
 
-  // Prevenim randarea partiala a graficelor cat timp state-ul se hidrateaza
   if (isLoading && !isSuccess) {
       return <Spinner />;
   }
@@ -63,20 +61,37 @@ function AgentDashboard() {
       t.status !== 'closed' && t.deadline && new Date(t.deadline) < new Date()
   ).length;
 
-  // Mapping pentru dataset-ul PieChart
+  // Dataset PieChart (Distributie)
   const statusData = [
     { name: 'Noi', value: newTickets, color: '#10b981' }, 
     { name: 'In Lucru', value: openTickets, color: '#3b82f6' }, 
     { name: 'Suspendate', value: tickets.filter(t => t.status === 'suspended').length, color: '#f59e0b' }, 
     { name: 'Inchise', value: closedTickets, color: '#ef4444' }, 
-  ].filter(item => item.value > 0); // Evitam randarea label-urilor cu 0%
+  ].filter(item => item.value > 0); 
 
-  // Mapping pentru dataset-ul BarChart
+  // Dataset BarChart (Prioritati)
   const priorityData = [
     { name: 'Critica (Mare)', Tichete: tickets.filter(t => t.priority === 'Mare').length },
     { name: 'Medie', Tichete: tickets.filter(t => t.priority === 'Medie').length },
     { name: 'Mica', Tichete: tickets.filter(t => t.priority === 'Mica' || !t.priority).length },
   ];
+
+  // --- NOU: Algoritm Grupare pentru Graficul Liniar (Evolutie in Timp) ---
+  // Grupam tichetele dupa data crearii (ex: "24 Oct")
+  const groupedDates = tickets.reduce((acc, ticket) => {
+      const d = new Date(ticket.createdAt).toLocaleDateString('ro-RO', { month: 'short', day: 'numeric' });
+      acc[d] = (acc[d] || 0) + 1;
+      return acc;
+  }, {});
+
+  // Convertim obiectul intr-un array compatibil cu Recharts
+  // Inversam array-ul pentru a le afisa cronologic (backend-ul le trimite in ordine descrescatoare)
+  // Taiem rezultatul la ultimele 14 zile care au inregistrat activitate pentru a nu aglomera axa X
+  const timelineData = Object.keys(groupedDates).map(key => ({
+      name: key,
+      Tichete: groupedDates[key]
+  })).reverse().slice(-14);
+  // -----------------------------------------------------------------------
 
   // Micro-componenta reutilizabila pt afisarea metricilor
   const StatCard = ({ title, value, icon, color, subtitle }) => (
@@ -100,7 +115,6 @@ function AgentDashboard() {
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-500 pb-10">
       
-      {/* Header Container */}
       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 border-b border-white/10 pb-6">
           <div>
               <h2 className="text-3xl font-black text-white uppercase italic drop-shadow-md">
@@ -141,7 +155,6 @@ function AgentDashboard() {
           />
           <StatCard 
               title="Rata de Rezolvare" 
-              // Cast in format procentual pentru UX mai bun
               value={totalTickets > 0 ? `${Math.round((closedTickets / totalTickets) * 100)}%` : '0%'} 
               icon={<FaCheckDouble />} 
               color="text-purple-400" 
@@ -149,9 +162,7 @@ function AgentDashboard() {
           />
       </div>
 
-      {/* Container Chart.js / Recharts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
           <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-6 rounded-[2rem] shadow-lg">
               <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
                   <FaChartPie className="text-blue-400" /> Distributie pe Statusuri
@@ -202,10 +213,37 @@ function AgentDashboard() {
                   </ResponsiveContainer>
               </div>
           </div>
-
       </div>
 
-      {/* Componenta Tabel - Task Queue */}
+      {/* --- NOU: GRAFIC LINIAR (EVOLUTIE VOLUM) --- */}
+      <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-6 rounded-[2rem] shadow-lg">
+          <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
+              <FaChartLine className="text-emerald-400" /> Volum Tichete Noi (Ultimele 14 zile active)
+          </h3>
+          <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={timelineData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                      <XAxis dataKey="name" stroke="#94a3b8" tick={{fontSize: 12}} />
+                      <YAxis stroke="#94a3b8" tick={{fontSize: 12}} allowDecimals={false} />
+                      <Tooltip 
+                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff' }}
+                          cursor={{ stroke: '#334155', strokeWidth: 2 }}
+                      />
+                      <Line 
+                          type="monotone" 
+                          dataKey="Tichete" 
+                          stroke="#10b981" 
+                          strokeWidth={4} 
+                          dot={{ r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#0f172a' }} 
+                          activeDot={{ r: 8, stroke: '#fff', strokeWidth: 2 }} 
+                      />
+                  </LineChart>
+              </ResponsiveContainer>
+          </div>
+      </div>
+      {/* ------------------------------------------- */}
+
       <div className="bg-slate-900/50 backdrop-blur-xl border border-blue-500/20 rounded-[2rem] p-6 lg:p-8 shadow-[0_0_30px_rgba(59,130,246,0.1)] mt-8">
           <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-white flex items-center gap-3">
@@ -233,7 +271,6 @@ function AgentDashboard() {
                           </tr>
                       </thead>
                       <tbody>
-                          {/* Limitarea listei la 5 randuri pentru a mentine dashboard-ul curat */}
                           {myTickets.slice(0, 5).map(ticket => (
                               <tr key={ticket._id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
                                   <td className="p-3 font-mono text-sm text-blue-300">
@@ -263,7 +300,6 @@ function AgentDashboard() {
                           ))}
                       </tbody>
                   </table>
-                  {/* Link catre tabelul complet daca numarul activitatilor > 5 */}
                   {myTickets.length > 5 && (
                       <div className="mt-4 text-center">
                           <Link to="/tickets" className="text-slate-400 hover:text-white text-sm text-center italic transition-colors">
