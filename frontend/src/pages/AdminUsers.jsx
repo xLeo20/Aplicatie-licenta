@@ -28,7 +28,6 @@ function AdminUsers() {
   const fetchUsers = async () => {
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } }
-      // Forțăm browser-ul să descarce lista actualizată evitând memoria cache
       const response = await axios.get(`/api/users/all?t=${new Date().getTime()}`, config)
       
       if (Array.isArray(response.data)) { 
@@ -82,17 +81,7 @@ function AdminUsers() {
         return;
     }
 
-    const userEmail = email.toLowerCase();
-    
-    if ((role === 'agent' || role === 'admin') && !userEmail.endsWith('@it.deskflow.ro')) {
-        toast.warning('Personalul IT trebuie înregistrat obligatoriu cu domeniul: @it.deskflow.ro');
-        return; 
-    }
-
-    if (role === 'angajat' && !userEmail.endsWith('@corp.deskflow.ro')) {
-        toast.warning('Angajații trebuie înregistrați obligatoriu cu domeniul: @corp.deskflow.ro');
-        return; 
-    }
+    // AM SCOS VALIDARILE STRICTE PENTRU DOMENIUL DE EMAIL DE AICI
 
     try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } }
@@ -258,8 +247,8 @@ function AdminUsers() {
                               <input type='text' className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-slate-600" name='name' value={name} onChange={onChange} required placeholder="ex: Ion Popescu" />
                           </div>
                           <div className="space-y-2">
-                              <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest px-1">Email Instituțional</label>
-                              <input type='email' className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-slate-600" name='email' value={email} onChange={onChange} required placeholder="nume@deskflow.ro" />
+                              <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest px-1">Adresă Email</label>
+                              <input type='email' className="w-full bg-slate-900/50 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-slate-600" name='email' value={email} onChange={onChange} required placeholder="ex: adresa@email.com" />
                           </div>
                           <div className="space-y-2">
                               <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest px-1">Parolă de Acces {modalType === 'edit' && '(Lăsați gol pentru a păstra parola actuală)'}</label>
