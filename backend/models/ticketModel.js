@@ -13,15 +13,16 @@ const ticketSchema = mongoose.Schema({
         sparse: true // Permitem sa fie unic, dar sa functioneze corect si cu tichete vechi care nu il aveau setat
     },
     
+    // Am sters "enum"-ul de aici ca sa nu ne mai blocheze Mongoose la denumirile noi
     issueType: {
         type: String,
-        required: [true, 'Selectarea tipului de solicitare (Incident/Cerere) este obligatorie.'],
-        enum: ['Incident', 'Cerere de Serviciu', 'Cerere de Acces', 'Onboarding / Offboarding']
+        required: [true, 'Selectarea tipului de solicitare (Incident/Cerere) este obligatorie.']
     },
+    
+    // Am sters "enum"-ul de aici pentru a suporta absolut orice categorie pe care o pui in Frontend
     category: {
         type: String,
-        required: [true, 'Selectarea ariei / categoriei este obligatorie pentru rutarea corecta a tichetului.'],
-        enum: ['Hardware & Echipamente', 'Software & Licente', 'Retea & Comunicatii', 'Conturi & Permisiuni', 'Infrastructura Administrativa']
+        required: [true, 'Selectarea ariei / categoriei este obligatorie pentru rutarea corecta a tichetului.']
     },
 
 

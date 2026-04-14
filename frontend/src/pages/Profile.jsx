@@ -9,6 +9,7 @@ function Profile() {
   const { user } = useSelector((state) => state.auth)
   const dispatch = useDispatch()
   
+  const [currentUser, setCurrentUser] = useState(user) // State local pt a updata UI-ul instant
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(user?.profileImage || null)
 
@@ -19,11 +20,33 @@ function Profile() {
   
   const [errors, setErrors] = useState({ old: '', new: '', confirm: '' })
 
+  // Efect pentru a trage datele "proaspete" de pe server cand incarca profilul
   useEffect(() => {
-     if (user?.profileImage) {
-         setPreview(user.profileImage.startsWith('http') ? user.profileImage : `http://localhost:5000${user.profileImage}`)
+     const fetchLatestUserData = async () => {
+         if(user && user.token) {
+             try {
+                 const config = { headers: { Authorization: `Bearer ${user.token}` } }
+                 const { data } = await axios.get('/api/users/me', config)
+                 
+                 // Daca datele difera, suprascriem localStorage ca sa avem totul la zi (fara sa ceara logout)
+                 if (data.department !== user.department || data.role !== user.role) {
+                     const updatedUser = { ...user, ...data }
+                     localStorage.setItem('user', JSON.stringify(updatedUser))
+                     setCurrentUser(updatedUser) // Updatam si UI-ul imediat
+                 }
+             } catch (error) {
+                 console.log("Nu am putut reimprospata datele userului:", error)
+             }
+         }
      }
+     fetchLatestUserData()
   }, [user])
+
+  useEffect(() => {
+     if (currentUser?.profileImage) {
+         setPreview(currentUser.profileImage.startsWith('http') ? currentUser.profileImage : `http://localhost:5000${currentUser.profileImage}`)
+     }
+  }, [currentUser])
 
   const onFileChange = (e) => {
       if (e.target.files[0]) {
@@ -45,7 +68,7 @@ function Profile() {
           const config = {
               headers: {
                   'Content-Type': 'multipart/form-data',
-                  Authorization: `Bearer ${user.token}`
+                  Authorization: `Bearer ${currentUser.token}`
               }
           }
 
@@ -102,7 +125,7 @@ function Profile() {
     try {
       const config = {
         headers: {
-          Authorization: `Bearer ${user.token}`,
+          Authorization: `Bearer ${currentUser.token}`,
         },
       }
 
@@ -130,7 +153,7 @@ function Profile() {
     }
   }
 
-  if (!user) {
+  if (!currentUser) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <p className="text-blue-400 text-xl animate-pulse font-black tracking-widest">Se încarcă profilul...</p>
@@ -138,8 +161,7 @@ function Profile() {
     )
   }
 
-  // Fallback ID pentru vizualizare
-  const displayId = user.userId ? user.userId : `USR-${user._id.substring(18, 24).toLowerCase()}`;
+  const displayId = currentUser.userId ? currentUser.userId : `USR-${currentUser._id.substring(18, 24).toLowerCase()}`;
 
   return (
     <div className="w-full flex flex-col items-center px-4 py-12 animate-in fade-in zoom-in duration-500">
@@ -185,10 +207,10 @@ function Profile() {
           </div>
 
           <div className="text-center mb-10 space-y-2">
-            <h2 className="text-4xl font-black text-white tracking-tight drop-shadow-lg">{user.name}</h2>
+            <h2 className="text-4xl font-black text-white tracking-tight drop-shadow-lg">{currentUser.name}</h2>
             <div className="inline-flex items-center gap-2 bg-slate-950/50 px-4 py-1.5 rounded-full border border-white/5">
               <FaEnvelope className="text-blue-400 text-sm" /> 
-              <span className="text-blue-100/60 text-sm font-medium tracking-wide">{user.email}</span>
+              <span className="text-blue-100/60 text-sm font-medium tracking-wide">{currentUser.email}</span>
             </div>
 
             {file && (
@@ -213,13 +235,13 @@ function Profile() {
             </div>
 
             <div className="bg-slate-950/40 border border-white/5 p-6 rounded-3xl flex items-center gap-5 hover:border-blue-500/30 transition-all group">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform ${user.role === 'admin' ? 'bg-red-900/20 text-red-500' : 'bg-blue-900/20 text-blue-500'}`}>
-                {user.role === 'admin' ? <FaShieldAlt /> : <FaUserTag />}
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform ${currentUser.role === 'admin' ? 'bg-red-900/20 text-red-500' : 'bg-blue-900/20 text-blue-500'}`}>
+                {currentUser.role === 'admin' ? <FaShieldAlt /> : <FaUserTag />}
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Nivel Acces</span>
-                <span className={`text-sm font-black uppercase tracking-widest ${user.role === 'admin' ? 'text-red-400' : 'text-blue-400'}`}>
-                  {user.role === 'admin' ? 'Administrator' : user.role === 'agent' ? 'Agent IT' : 'Angajat'}
+                <span className={`text-sm font-black uppercase tracking-widest ${currentUser.role === 'admin' ? 'text-red-400' : 'text-blue-400'}`}>
+                  {currentUser.role === 'admin' ? 'Administrator' : currentUser.role === 'agent' ? 'Agent Suport' : 'Angajat'}
                 </span>
               </div>
             </div>
@@ -228,7 +250,7 @@ function Profile() {
               <div className="w-14 h-14 bg-emerald-900/20 text-emerald-500 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-transform"><FaBuilding /></div>
               <div className="flex flex-col">
                 <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Departament</span>
-                <span className="text-lg font-bold text-white uppercase tracking-wider">{user.department || 'General'}</span>
+                <span className="text-lg font-bold text-white uppercase tracking-wider">{currentUser.department || 'General'}</span>
               </div>
             </div>
           </div>

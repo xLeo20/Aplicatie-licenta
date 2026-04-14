@@ -18,28 +18,25 @@ const getTickets = asyncHandler(async (req, res) => {
   let tickets;
   
   if (user.role === 'admin') {
-    // 1. Administratorul vede absolut toate tichetele din sistem
+    // Adminul vede absolut toate tichetele din sistem
     tickets = await Ticket.find({}).sort({ createdAt: -1 }); 
-    
   } else if (user.role === 'agent') {
-    // 2. Agentul vede doar tichetele din aria lui de competenta
+    // Agentul vede doar ce e in departamentul lui
     let allowedCategories = [];
     
-    // Facem maparea intre departamentul agentului si categoriile din formularul de tichete
+    // Potrivire EXACTA cu <optgroup> din frontend
     if (user.department === 'IT Tech') {
-        allowedCategories = [
-            'Hardware & Echipamente', 
-            'Software & Licente', 
-            'Retea & Comunicatii', 
-            'Conturi & Permisiuni'
-        ];
-    } else if (user.department === 'General' || user.department === 'Infrastructura') {
-        allowedCategories = ['Infrastructura Administrativa'];
+        allowedCategories = ['Echipamente si Hardware', 'Aplicatii si Programe', 'Conturi si Parole', 'Retea si Internet'];
     } else if (user.department === 'Resurse Umane') {
-        allowedCategories = ['Cerinte HR', 'Salarizare']; 
+        allowedCategories = ['Adeverinte si Documente', 'Concedii si Invoiri', 'Angajari si Plecari'];
+    } else if (user.department === 'Comercial') {
+        allowedCategories = ['Vanzari si Ofertare', 'Contracte si Furnizori'];
+    } else if (user.department === 'Customer Care') {
+        allowedCategories = ['Suport Clienti', 'Reclamatii si Sesizari'];
+    } else if (user.department === 'General') {
+        allowedCategories = ['Mentenanta Cladire', 'Consumabile si Birotica'];
     }
     
-    // Cautam tichetele care fac parte din categoriile permise SAU care i-au fost asignate direct agentului
     tickets = await Ticket.find({
         $or: [
             { category: { $in: allowedCategories } },
@@ -48,15 +45,14 @@ const getTickets = asyncHandler(async (req, res) => {
     }).sort({ createdAt: -1 });
 
   } else {
-    // 3. Utilizatorul simplu extrage doar solicitarile lui
+    // Utilizatorul simplu extrage doar solicitarile lui
     tickets = await Ticket.find({ user: req.user.id }).sort({ createdAt: -1 });
   }
   
   res.status(200).json(tickets);
 });
 
-// @desc    Crearea unui incident/tichet nou
-// @route   POST /api/tickets
+
 // @desc    Crearea unui incident/tichet nou
 // @route   POST /api/tickets
 const createTicket = asyncHandler(async (req, res) => {
@@ -79,6 +75,7 @@ const createTicket = asyncHandler(async (req, res) => {
   const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const pickupDeadline = new Date(Date.now() + 10 * 60 * 1000);
 
+  // 1. CREARE TICHET IN DB
   const ticket = await Ticket.create({
     ticketId: newTicketId,  
     issueType, 
@@ -98,6 +95,7 @@ const createTicket = asyncHandler(async (req, res) => {
     io.emit('ticketUpdated'); 
   }
 
+  // 2. MAIL CONFIRMARE CATRE ANGAJATUL CARE A CREAT TICHETUL
   try {
     const userMessage = `
       <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
@@ -107,10 +105,10 @@ const createTicket = asyncHandler(async (req, res) => {
           <div style="background-color: #e8f0fe; padding: 15px; border-left: 5px solid #0056b3; margin: 20px 0;">
             <p><strong>Numar Tichet:</strong> #${ticket.ticketId}</p>
             <p><strong>Tipul Problemei:</strong> ${ticket.issueType}</p>
-            <p><strong>Arie/Categorie:</strong> ${ticket.category}</p>
+            <p><strong>Departament Vizat:</strong> ${ticket.category}</p>
             <p><strong>Prioritate Setata:</strong> ${ticket.priority}</p>
           </div>
-          <p>Un reprezentant al echipei tehnice va investiga situatia in curand.</p>
+          <p>Un reprezentant al echipei va investiga situatia in curand.</p>
           <br/>
           <a href="http://localhost:3000/ticket/${ticket._id}" style="background-color: #0056b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Vezi Tichetul Aici</a>
           <p style="font-size: 12px; color: #888; margin-top: 20px;">Serviciul de Suport Intern</p>
@@ -126,20 +124,23 @@ const createTicket = asyncHandler(async (req, res) => {
     console.log('Eroare mail utilizator:', error)
   }
 
-  // LOGICA PENTRU NOTIFICARI SI MAILURI BAZATE PE DEPARTAMENT
+  // 3. LOGICA NOTIFICARI / MAIL BAZATA PE DEPARTAMENT PENTRU AGENTI/ADMINI
   try {
     const allStaff = await User.find({ role: { $in: ['agent', 'admin'] } });
     
-    // Filtram agenții: Păstrăm administratorii (văd tot) și agenții care au voie pe categoria asta
     const targetStaff = allStaff.filter(staff => {
-        if (staff.role === 'admin') return true;
+        if (staff.role === 'admin') return true; // Adminul primeste alerta pentru orice tichet
         
         if (staff.department === 'IT Tech') {
-            return ['Hardware & Echipamente', 'Software & Licente', 'Retea & Comunicatii', 'Conturi & Permisiuni'].includes(category);
-        } else if (staff.department === 'General' || staff.department === 'Infrastructura') {
-            return ['Infrastructura Administrativa'].includes(category);
+            return ['Echipamente si Hardware', 'Aplicatii si Programe', 'Conturi si Parole', 'Retea si Internet'].includes(category);
         } else if (staff.department === 'Resurse Umane') {
-            return ['Cerinte HR', 'Salarizare'].includes(category); 
+            return ['Adeverinte si Documente', 'Concedii si Invoiri', 'Angajari si Plecari'].includes(category);
+        } else if (staff.department === 'Comercial') {
+            return ['Vanzari si Ofertare', 'Contracte si Furnizori'].includes(category);
+        } else if (staff.department === 'Customer Care') {
+            return ['Suport Clienti', 'Reclamatii si Sesizari'].includes(category);
+        } else if (staff.department === 'General') {
+            return ['Mentenanta Cladire', 'Consumabile si Birotica'].includes(category);
         }
         return false;
     });
@@ -159,7 +160,7 @@ const createTicket = asyncHandler(async (req, res) => {
                 <p style="white-space: pre-wrap; font-style: italic;">"${ticket.description}"</p>
               </div>
 
-              <p>SLA-ul pentru preluare a inceput. Va rugam sa investigati si sa preluati tichetul daca face parte din aria voastra.</p>
+              <p>Va rugam sa preluati tichetul daca face parte din aria voastra.</p>
               <br/>
               <div style="text-align: center; margin-top: 20px;">
                   <a href="http://localhost:3000/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Vezi Tichetul Aici</a>
@@ -169,14 +170,14 @@ const createTicket = asyncHandler(async (req, res) => {
         `;
 
         for (const staff of targetStaff) {
-            // 1. Salvăm notificarea în baza de date pentru clopoțel (IN-APP)
+            // Notificare baza de date
             await Notification.create({
                 user: staff._id,
-                message: `Tichet NOU #${ticket.ticketId} în departamentul tău (${ticket.category}).`,
+                message: `Tichet NOU #${ticket.ticketId} in aria ta (${ticket.category}).`,
                 ticketId: ticket._id
             });
 
-            // 2. Emitem semnalul WebSockets PENTRU UN SINGUR USER SPECIFIC
+            // Notificare Websocket frontend
             if (io) {
                 io.emit(`notificare_noua_${staff._id}`, {
                     message: `Tichet NOU #${ticket.ticketId} creat (${ticket.category})`,
@@ -184,7 +185,7 @@ const createTicket = asyncHandler(async (req, res) => {
                 });
             }
 
-            // 3. Trimitem mail-ul
+            // Notificare Email
             if (staff.email) {
                 try {
                     await sendEmail({
@@ -193,7 +194,7 @@ const createTicket = asyncHandler(async (req, res) => {
                         html: staffMessage,
                     });
                 } catch (mailError) {
-                    console.log(`Nu am putut trimite mail catre agentul ${staff.email}:`, mailError);
+                    console.log(`Eroare trimitere email catre ${staff.email}:`, mailError);
                 }
             }
         }

@@ -16,8 +16,9 @@ function NewTicket() {
   const [name] = useState(user?.name || '')
   const [email] = useState(user?.email || '')
   
-  const [issueType, setIssueType] = useState('Incident')
-  const [category, setCategory] = useState('Hardware & Echipamente')
+  const [issueType, setIssueType] = useState('Raportare Problema')
+  // Seteaza valoarea initiala la prima optiune disponibila
+  const [category, setCategory] = useState('Echipamente si Hardware')
   const [priority, setPriority] = useState('Mica')
   const [description, setDescription] = useState('')
   
@@ -102,7 +103,7 @@ function NewTicket() {
         <div className="p-8 md:p-12">
             <div className="text-center mb-10">
                 <h2 className="text-3xl font-black text-white mb-2">Formular de Suport</h2>
-                <p className="text-blue-200/50 text-sm font-medium">Completati campurile de mai jos pentru a ne ajuta sa directionam solicitarea corect.</p>
+                <p className="text-blue-200/50 text-sm font-medium">Completati campurile de mai jos pentru a directiona cererea catre departamentul corect.</p>
             </div>
 
             <form onSubmit={onSubmit} className="space-y-8">
@@ -130,10 +131,9 @@ function NewTicket() {
                         </label>
                         <div className="relative">
                             <select value={issueType} onChange={(e) => setIssueType(e.target.value)} className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer">
-                                <option className="bg-slate-900" value='Incident'>🔴 Raportare Problema/Eroare</option>
-                                <option className="bg-slate-900" value='Cerere de Serviciu'>🟢 Solicitare Echipament/Serviciu</option>
-                                <option className="bg-slate-900" value='Cerere de Acces'>🔐 Cerere Drepturi de Acces</option>
-                                <option className="bg-slate-900" value='Onboarding / Offboarding'>🧑‍💼 Angajat Nou / Plecare</option>
+                                <option className="bg-slate-900" value='Raportare Problema'>🔴 Raportare Problema / Defectiune</option>
+                                <option className="bg-slate-900" value='Cerere Serviciu'>🟢 Cerere Echipament / Serviciu Nou</option>
+                                <option className="bg-slate-900" value='Cerere Informatii'>🔵 Cerere Informatii / Ajutor general</option>
                             </select>
                             <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">▼</div>
                         </div>
@@ -145,11 +145,35 @@ function NewTicket() {
                         </label>
                         <div className="relative">
                             <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-4 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer">
-                                <option className="bg-slate-900" value='Hardware & Echipamente'>💻 Echipamente Fizice (Hardware)</option>
-                                <option className="bg-slate-900" value='Software & Licente'>💽 Aplicatii si Licente (Software)</option>
-                                <option className="bg-slate-900" value='Retea & Comunicatii'>🌐 Retea si Internet</option>
-                                <option className="bg-slate-900" value='Conturi & Permisiuni'>🔑 Conturi si Parole</option>
-                                <option className="bg-slate-900" value='Infrastructura Administrativa'>🏢 Mentenanta Cladire</option>
+                                
+                                <optgroup label="💻 IT Tech" className="bg-slate-900 font-bold text-blue-400">
+                                    <option className="bg-slate-900 text-white" value='Echipamente si Hardware'>Echipamente si Hardware</option>
+                                    <option className="bg-slate-900 text-white" value='Aplicatii si Programe'>Aplicatii si Programe</option>
+                                    <option className="bg-slate-900 text-white" value='Conturi si Parole'>Conturi si Parole</option>
+                                    <option className="bg-slate-900 text-white" value='Retea si Internet'>Retea si Internet</option>
+                                </optgroup>
+                                
+                                <optgroup label="👥 Resurse Umane" className="bg-slate-900 font-bold text-pink-400">
+                                    <option className="bg-slate-900 text-white" value='Adeverinte si Documente'>Adeverinte si Documente</option>
+                                    <option className="bg-slate-900 text-white" value='Concedii si Invoiri'>Concedii si Invoiri</option>
+                                    <option className="bg-slate-900 text-white" value='Angajari si Plecari'>Angajari si Plecari</option>
+                                </optgroup>
+
+                                <optgroup label="💼 Comercial" className="bg-slate-900 font-bold text-emerald-400">
+                                    <option className="bg-slate-900 text-white" value='Vanzari si Ofertare'>Vanzari si Ofertare</option>
+                                    <option className="bg-slate-900 text-white" value='Contracte si Furnizori'>Contracte si Furnizori</option>
+                                </optgroup>
+
+                                <optgroup label="🎧 Customer Care" className="bg-slate-900 font-bold text-purple-400">
+                                    <option className="bg-slate-900 text-white" value='Suport Clienti'>Suport Clienti</option>
+                                    <option className="bg-slate-900 text-white" value='Reclamatii si Sesizari'>Reclamatii si Sesizari</option>
+                                </optgroup>
+
+                                <optgroup label="🏢 General" className="bg-slate-900 font-bold text-amber-400">
+                                    <option className="bg-slate-900 text-white" value='Mentenanta Cladire'>Mentenanta Cladire</option>
+                                    <option className="bg-slate-900 text-white" value='Consumabile si Birotica'>Consumabile si Birotica</option>
+                                </optgroup>
+
                             </select>
                             <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">▼</div>
                         </div>
@@ -180,7 +204,7 @@ function NewTicket() {
                         name='description' 
                         required
                         className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none transition-all min-h-[150px] resize-y" 
-                        placeholder='Va rugam sa oferiti cat mai multe detalii despre problema sau cerere...' 
+                        placeholder='Va rugam sa oferiti cat mai multe detalii despre cererea dumneavoastra...' 
                         value={description} 
                         onChange={(e) => setDescription(e.target.value)}
                     ></textarea>
