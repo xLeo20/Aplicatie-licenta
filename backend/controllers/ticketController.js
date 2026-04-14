@@ -5,7 +5,7 @@ const Ticket = require('../models/ticketModel');
 const Note = require('../models/noteModel');
 const sendEmail = require('../utils/sendEmail'); 
 
-// @desc    Preia lista de tichete (filtrata pe rol)
+// @desc    Preia lista de tichete (filtrata pe rol si departament)
 // @route   GET /api/tickets
 const getTickets = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
@@ -15,13 +15,42 @@ const getTickets = asyncHandler(async (req, res) => {
   }
 
   let tickets;
-  // Daca este administrator sau agent IT, primeste toata lista de tichete din sistem
-  if (user.role === 'agent' || user.role === 'admin') {
+  
+  if (user.role === 'admin') {
+    // 1. Administratorul vede absolut toate tichetele din sistem
     tickets = await Ticket.find({}).sort({ createdAt: -1 }); 
+    
+  } else if (user.role === 'agent') {
+    // 2. Agentul vede doar tichetele din aria lui de competenta
+    let allowedCategories = [];
+    
+    // Facem maparea intre departamentul agentului si categoriile din formularul de tichete
+    if (user.department === 'IT Tech') {
+        allowedCategories = [
+            'Hardware & Echipamente', 
+            'Software & Licente', 
+            'Retea & Comunicatii', 
+            'Conturi & Permisiuni'
+        ];
+    } else if (user.department === 'General' || user.department === 'Infrastructura') {
+        allowedCategories = ['Infrastructura Administrativa'];
+    } else if (user.department === 'Resurse Umane') {
+        allowedCategories = ['Cerinte HR', 'Salarizare']; 
+    }
+    
+    // Cautam tichetele care fac parte din categoriile permise SAU care i-au fost asignate direct agentului
+    tickets = await Ticket.find({
+        $or: [
+            { category: { $in: allowedCategories } },
+            { assignedTo: user._id }
+        ]
+    }).sort({ createdAt: -1 });
+
   } else {
-  // Daca e utilizator simplu, extragem doar solicitarile lui
+    // 3. Utilizatorul simplu extrage doar solicitarile lui
     tickets = await Ticket.find({ user: req.user.id }).sort({ createdAt: -1 });
   }
+  
   res.status(200).json(tickets);
 });
 
@@ -41,11 +70,9 @@ const createTicket = asyncHandler(async (req, res) => {
     throw new Error('Sesiune expirata');
   }
 
-  // Generam un ID scurt vizual de genul #1, #2 pt a fi mai usor de retinut decat _id-ul de mongo
   const lastTicket = await Ticket.findOne().sort({ ticketId: -1 });
   const newTicketId = lastTicket && lastTicket.ticketId ? lastTicket.ticketId + 1 : 1;
 
-  // Calculam target-urile pentru SLA. Rezolvare in 24h, Preluare in 10m
   const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const pickupDeadline = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -62,16 +89,15 @@ const createTicket = asyncHandler(async (req, res) => {
     attachment: attachment || null, 
   });
 
-  // Notificam dashboard-urile active ca a intrat o solicitare noua
   const io = req.app.get('io');
   if (io) {
     io.emit('tichet_nou_creat', ticket);
     io.emit('ticketUpdated'); 
   }
 
-  // Procesam trimiterea de email non-blocant, pentru a nu prelungi loading-ul pe frontend
+  // 1. Trimite email catre utilizatorul care a deschis tichetul
   try {
-    const message = `
+    const userMessage = `
       <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
         <div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px;">
           <h2 style="color: #333;">Salut ${user.name},</h2>
@@ -83,17 +109,65 @@ const createTicket = asyncHandler(async (req, res) => {
             <p><strong>Prioritate Setata:</strong> ${ticket.priority}</p>
           </div>
           <p>Un reprezentant al echipei tehnice va investiga situatia in curand.</p>
-          <p style="font-size: 12px; color: #888;">Serviciul de Suport Intern</p>
+          <br/>
+          <a href="http://localhost:3000/ticket/${ticket._id}" style="background-color: #0056b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Vezi Tichetul Aici</a>
+          <p style="font-size: 12px; color: #888; margin-top: 20px;">Serviciul de Suport Intern</p>
         </div>
       </div>
     `
     await sendEmail({
       to: user.email,
       subject: `Confirmare Deschidere Tichet #${ticket.ticketId}`,
-      html: message,
+      html: userMessage,
     })
   } catch (error) {
-    console.log('Sistemul de mail a intampinat o eroare:', error)
+    console.log('Eroare mail utilizator:', error)
+  }
+
+  // 2. Trimite notificare email INDIVIDUALA catre fiecare agent si administrator
+  try {
+    const staffMembers = await User.find({ role: { $in: ['agent', 'admin'] } });
+
+    if (staffMembers.length > 0) {
+        const staffMessage = `
+          <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #fff3cd;">
+            <div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; border: 1px solid #ffc107;">
+              <h2 style="color: #d39e00;">🚨 Notificare Tichet Nou</h2>
+              <p>Un nou tichet a fost deschis in platforma de catre <strong>${user.name}</strong>.</p>
+              
+              <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #17a2b8; margin: 20px 0;">
+                <p><strong>Numar Tichet:</strong> #${ticket.ticketId}</p>
+                <p><strong>Categorie:</strong> ${ticket.category} (${ticket.issueType})</p>
+                <p><strong>Prioritate:</strong> <span style="color: red; font-weight: bold;">${ticket.priority}</span></p>
+                <p><strong>Descriere:</strong></p>
+                <p style="white-space: pre-wrap; font-style: italic;">"${ticket.description}"</p>
+              </div>
+
+              <p>SLA-ul pentru preluare a inceput. Va rugam sa investigati si sa preluati tichetul daca face parte din aria voastra.</p>
+              <br/>
+              <div style="text-align: center; margin-top: 20px;">
+                  <a href="http://localhost:3000/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Vezi Tichetul Aici</a>
+              </div>
+            </div>
+          </div>
+        `;
+
+        for (const staff of staffMembers) {
+            if (staff.email) {
+                try {
+                    await sendEmail({
+                        to: staff.email,
+                        subject: `🚨 Tichet NOU #${ticket.ticketId} - ${ticket.priority}`,
+                        html: staffMessage,
+                    });
+                } catch (mailError) {
+                    console.log(`Nu am putut trimite mail catre agentul ${staff.email}:`, mailError);
+                }
+            }
+        }
+    }
+  } catch (error) {
+    console.log('Eroare extragere agenti din DB:', error)
   }
 
   res.status(201).json(ticket);
@@ -108,7 +182,6 @@ const getTicket = asyncHandler(async (req, res) => {
     throw new Error('Utilizator inexistent');
   }
 
-  // Populam AssignedTo pt a vedea direct numele agentului in frontend
   const ticket = await Ticket.findById(req.params.id).populate('assignedTo', 'name email');
 
   if (!ticket) {
@@ -116,7 +189,6 @@ const getTicket = asyncHandler(async (req, res) => {
     throw new Error('Tichetul nu exista in baza de date.');
   }
 
-  // Regula de acces limitat
   if (ticket.user.toString() !== req.user.id && user.role !== 'agent' && user.role !== 'admin') {
     res.status(401);
     throw new Error('Incercare de acces interzisa pe acest document.');
@@ -135,7 +207,6 @@ const deleteTicket = asyncHandler(async (req, res) => {
     throw new Error('Nu s-a gasit tichetul.');
   }
 
-  // Politica de retentie: doara dministratorii sterg definitv
   if (ticket.user.toString() !== req.user.id && user.role !== 'admin') {
     res.status(401);
     throw new Error('Ai nevoie de rol de admin pentru a sterge date logate.');
@@ -197,14 +268,12 @@ const assignTicket = asyncHandler(async (req, res) => {
       throw new Error('End-userii nu pot prelua task-uri.');
   }
 
-  // Schimbam statusul din New in Open si alocam Id-ul agentului
   const updatedTicket = await Ticket.findByIdAndUpdate(
     req.params.id,
     { status: 'open', assignedTo: user.id },
     { new: true }
   ).populate('assignedTo', 'name email'); 
 
-  // Generam o intrare de sistem tip log pentru auditul actiunii
   const note = await Note.create({
     text: `A preluat in mod oficial acest tichet. Status setat: In Lucru.`,
     isStaff: true,
@@ -220,7 +289,6 @@ const assignTicket = asyncHandler(async (req, res) => {
     io.emit('noteAdded', note);              
   }
 
-  // Trimitem email catre utilizatorul final ca problema a fost observata
   try {
     const clientUser = await User.findById(ticket.user);
 
@@ -228,16 +296,16 @@ const assignTicket = asyncHandler(async (req, res) => {
       const message = `
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
           <h2 style="color: #0056b3;">Buna ${clientUser.name},</h2>
-          <p>Solicitarea ta cu ID-ul <strong>#${ticket.ticketId || ticket._id}</strong> a fost validata.</p>
+          <p>Solicitarea ta cu ID-ul <strong>#${ticket.ticketId || ticket._id}</strong> a fost preluata.</p>
           
           <div style="background-color: #e6fffa; padding: 15px; border-left: 5px solid #00b39f; margin: 20px 0;">
-            <p><strong>A fost desemnat agentul:</strong> ${user.name}</p>
-            <p><strong>Stadiu curent:</strong> Preluat pentru investigare (Open)</p>
+            <p><strong>Agent desemnat:</strong> ${user.name}</p>
+            <p><strong>Stadiu curent:</strong> In investigare (In Lucru)</p>
           </div>
 
           <p>Vei fi notificat de indata ce avem un raspuns sau o rezolutie.</p>
           <br/>
-          <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Status Live Aplicatie</a>
+          <a href="http://localhost:3000/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Status Live Aplicatie</a>
         </div>
       `;
 
@@ -299,7 +367,6 @@ const closeTicket = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user.id);
     const ticket = await Ticket.findById(req.params.id);
 
-    // Permitem transmiterea unui text explicativ la inchidere din modal
     const { resolutionText } = req.body;
 
     if (!ticket) {
@@ -318,7 +385,6 @@ const closeTicket = asyncHandler(async (req, res) => {
         { new: true }
     );
 
-    // Log de sistem pentru marcarea solutiei
     const note = await Note.create({
         text: resolutionText ? `Rezolutie furnizata: ${resolutionText}` : `Interventie tehnica incheiata.`,
         isStaff: user.role === 'agent' || user.role === 'admin',
@@ -334,12 +400,10 @@ const closeTicket = asyncHandler(async (req, res) => {
       io.emit('noteAdded', note); 
     }
 
-    // Informam automat angajatul ca si-a primit rezolvarea si ii cerem un rating CSAT
     try {
       const ticketOwner = await User.findById(ticket.user);
 
       if (ticketOwner) {
-        // Bloc if conditionally pentru stilizare mail 
         const solutionHtml = resolutionText 
           ? `<div style="background-color: #d4edda; border-left: 5px solid #28a745; padding: 15px; margin: 20px 0; color: #155724;">
                <h3 style="margin-top:0;">Solutie oferita de tehnician:</h3>
@@ -358,7 +422,7 @@ const closeTicket = asyncHandler(async (req, res) => {
             
             <br/>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px;">Acorda o nota ⭐</a>
+              <a href="http://localhost:3000/ticket/${ticket._id}" style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px;">Acorda o nota ⭐</a>
             </div>
             
             <p style="font-size: 12px; color: #888;">Acest mesaj a fost generat automat.</p>
@@ -391,7 +455,6 @@ const addFeedback = asyncHandler(async (req, res) => {
     throw new Error('Inregistrare lipsa')
   }
 
-  // Prevenim acordarea de note din partea altor conturi (impersonare)
   if (ticket.user.toString() !== req.user.id) {
     res.status(401)
     throw new Error('Poti da feedback strict la propriile tichete')
@@ -410,7 +473,6 @@ const addFeedback = asyncHandler(async (req, res) => {
 
   await ticket.save()
 
-  // Pus pentru reactualizarea imediata in pagina admin-ului la zona de statistici
   const io = req.app.get('io');
   if (io) {
     io.emit('ticketUpdated', ticket);
@@ -423,7 +485,6 @@ const addFeedback = asyncHandler(async (req, res) => {
 // @route   GET /api/tickets/agents
 // @access  Private
 const getAgents = asyncHandler(async (req, res) => {
-    // Returnam orice user de nivel operativ fara sa scurgem parole in retea
     const users = await User.find({ role: { $in: ['agent', 'admin'] } }).select('-password');
     res.status(200).json(users);
 });
@@ -452,16 +513,14 @@ const escalateTicket = asyncHandler(async (req, res) => {
         throw new Error('Contul colegului nu a putut fi extras');
     }
 
-    // Suprascriem vechiul AssignedTo cu ID-ul noului rezolvitor
     const updatedTicket = await Ticket.findByIdAndUpdate(
         req.params.id,
         { assignedTo: targetAgentId, status: 'open' },
         { new: true }
     ).populate('assignedTo', 'name email');
 
-    // Salvam istoricul transferului pentru a asigura trasabilitatea procedurii
     const note = await Note.create({
-        text: `Nivelul de suport a fost escaladat catre tehnicianul ${targetAgent.name}. Explicatie furnizata: ${reason || 'Standard transfer'}`,
+        text: `Nivelul de suport a fost transferat catre ${targetAgent.name}. Explicatie furnizata: ${reason || 'Standard transfer'}`,
         isStaff: true,
         staffId: user.id,
         ticket: req.params.id,
@@ -475,22 +534,21 @@ const escalateTicket = asyncHandler(async (req, res) => {
       io.emit('noteAdded', note); 
     }
 
-    // Alerta directa prin mail catre agentul nou implicat ca sa nu intarzie SLA-ul
     try {
         const message = `
             <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
                 <h2 style="color: #0056b3;">Salutari ${targetAgent.name},</h2>
-                <p>O cerere de suport ti-a fost direct delegata in sistem de catre <strong>${user.name}</strong>.</p>
+                <p>O cerere de suport ti-a fost delegata in sistem de catre <strong>${user.name}</strong>.</p>
                 <div style="background-color: #fff3cd; padding: 15px; border-left: 5px solid #ffc107; margin: 20px 0;">
                     <p><strong>Nota interna transfer:</strong> ${reason || 'Fară mesaj'}</p>
                 </div>
                 <br/>
-                <a href="http://localhost:5173/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Investigheaza Cazul</a>
+                <a href="http://localhost:3000/ticket/${ticket._id}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Investigheaza Cazul</a>
             </div>
         `;
         await sendEmail({
             to: targetAgent.email,
-            subject: `⚠️ Necesita Atentie - Escaladare Crt. #${ticket.ticketId || ticket._id}`,
+            subject: `⚠️ Transfer Tichet #${ticket.ticketId || ticket._id}`,
             html: message,
         });
     } catch (error) {
@@ -508,7 +566,6 @@ const uploadTicketFile = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('Payload-ul nu contine fisiere binare');
     }
-    // Convertim formatul caii statice pentru a putea fi randata pe interfata
     res.send(`/${req.file.path.replace(/\\/g, '/')}`);
 });
 

@@ -42,7 +42,7 @@ function Ticket() {
   const calculateTimeRemaining = (deadline) => {
     if (!deadline) return null;
     const total = Date.parse(deadline) - Date.parse(new Date());
-    if (total <= 0) return { expired: true, text: "Termen Depășit" };
+    if (total <= 0) return { expired: true, text: "Termen Depasit" };
     
     const minutes = Math.floor((total / 1000 / 60) % 60);
     const seconds = Math.floor((total / 1000) % 60);
@@ -69,7 +69,7 @@ function Ticket() {
                 const { data } = await axios.get('/api/tickets/agents', config)
                 setAgentsList(data.filter(a => a._id !== user._id))
             } catch (error) {
-                toast.error('Nu s-a putut încărca lista de agenți.')
+                toast.error('Nu s-a putut incarca lista de agenti.')
             }
         }
         fetchAgents()
@@ -102,13 +102,13 @@ function Ticket() {
 
   const confirmClose = () => {
     dispatch(closeTicket(ticketId))
-    toast.success(user?.role?.toLowerCase() === 'angajat' ? 'Cererea a fost anulată' : 'Tichet marcat ca rezolvat')
+    toast.success(user?.role?.toLowerCase() === 'angajat' ? 'Cererea a fost anulata' : 'Tichet marcat ca rezolvat')
     setConfirmationOpen(false)
     navigate('/tickets')
   }
 
   const onTicketSuspend = () => {
-      if(window.confirm('Sunteți sigur că doriți să suspendați acest tichet (timpul de rezolvare se va opri)?')) {
+      if(window.confirm('Sunteti sigur ca doriti sa suspendati acest tichet (timpul de rezolvare se va opri)?')) {
           dispatch(suspendTicket(ticketId))
           toast.info('Tichetul a fost suspendat.')
       }
@@ -116,17 +116,17 @@ function Ticket() {
 
   const onTicketAssign = () => {
     dispatch(assignTicket(ticketId))
-    toast.success('Ați preluat tichetul cu succes.')
+    toast.success('Ati preluat tichetul cu succes.')
   }
 
   const onFeedbackSubmit = (e) => {
     e.preventDefault()
     dispatch(addFeedback({ ticketId, rating, comment: feedbackComment }))
-    toast.success('Feedback-ul a fost trimis. Mulțumim!')
+    toast.success('Feedback-ul a fost trimis. Multumim!')
   }
 
   const onEscalateSubmit = () => {
-      if (!selectedAgent) return toast.error('Vă rugăm să selectați un coleg din listă.')
+      if (!selectedAgent) return toast.error('Va rugam sa selectati un coleg din lista.')
       dispatch(escalateTicket({ ticketId, targetAgentId: selectedAgent, reason: escalateReason }))
       toast.success('Tichetul a fost transferat.')
       setEscalateModalOpen(false)
@@ -150,7 +150,7 @@ function Ticket() {
             attachmentPath = res.data
         } catch (error) {
             setIsUploadingNote(false)
-            toast.error('Eroare la încărcarea fișierului. Vă rugăm să încercați din nou.')
+            toast.error('Eroare la incarcarea fisierului. Va rugam sa incercati din nou.')
             return
         }
     }
@@ -172,7 +172,7 @@ function Ticket() {
           suspended: 'bg-amber-500/20 text-amber-400 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.3)]',
           closed: 'bg-red-500/20 text-red-400 border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
       };
-      const texts = { new: 'În Așteptare', open: 'În Lucru', suspended: 'Suspendat', closed: 'Rezolvat' };
+      const texts = { new: 'In Asteptare', open: 'In Lucru', suspended: 'Suspendat', closed: 'Rezolvat' };
       return (
           <span className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest border ${styles[status]}`}>
               {texts[status]}
@@ -198,7 +198,7 @@ function Ticket() {
       <div className="w-full max-w-5xl flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
         <div className="flex items-center gap-4">
             <Link to='/tickets' className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition-all shadow-sm">
-                <FaArrowLeft /> Înapoi
+                <FaArrowLeft /> Inapoi
             </Link>
             <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic drop-shadow-lg">Tichet {displayId}</h1>
         </div>
@@ -216,8 +216,8 @@ function Ticket() {
               <div className="flex items-center gap-3">
                 <FaStopwatch className={`text-2xl ${pickupTimeLeft?.expired ? 'text-red-500 animate-pulse' : 'text-blue-400'}`} />
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Timp Rămas pentru Preluare</p>
-                  <p className={`font-bold ${pickupTimeLeft?.expired ? 'text-red-400' : 'text-blue-300'}`}>Timpul standard de răspuns conform procedurilor interne.</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/50">Timp Ramas pentru Preluare</p>
+                  <p className={`font-bold ${pickupTimeLeft?.expired ? 'text-red-400' : 'text-blue-300'}`}>Timpul standard de raspuns conform procedurilor interne.</p>
                 </div>
               </div>
               <div className="text-right">
@@ -243,7 +243,7 @@ function Ticket() {
                 <div className="space-y-6">
                     <div className="flex items-center gap-4 group">
                         <div className="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform"><FaBug /></div>
-                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Categorie Principală</p><h3 className="text-xl font-bold text-white">{ticket.issueType || 'N/A'}</h3></div>
+                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Categorie Principala</p><h3 className="text-xl font-bold text-white">{ticket.issueType || 'N/A'}</h3></div>
                     </div>
                     <div className="flex items-center gap-4 group">
                         <div className="w-12 h-12 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform"><FaLayerGroup /></div>
@@ -253,27 +253,27 @@ function Ticket() {
                 <div className="space-y-6">
                     <div className="flex items-center gap-4 group">
                         <div className="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform"><FaExclamationTriangle /></div>
-                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Prioritate</p><h3 className={`text-xl font-bold uppercase ${ticket.priority === 'Mare' ? 'text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'text-white'}`}>{ticket.priority || 'Mică'}</h3></div>
+                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Prioritate</p><h3 className={`text-xl font-bold uppercase ${ticket.priority === 'Mare' ? 'text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]' : 'text-white'}`}>{ticket.priority || 'Mica'}</h3></div>
                     </div>
                     <div className="flex items-center gap-4 group">
                         <div className="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-2xl flex items-center justify-center text-xl shadow-inner group-hover:scale-110 transition-transform"><FaUserTag /></div>
-                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Atribuit Către</p><h3 className="text-xl font-bold text-white">{ticket.assignedTo ? ticket.assignedTo.name : 'Neatribuit'}</h3></div>
+                        <div><p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest">Atribuit Catre</p><h3 className="text-xl font-bold text-white">{ticket.assignedTo ? ticket.assignedTo.name : 'Neatribuit'}</h3></div>
                     </div>
                 </div>
             </div>
 
             <div className="bg-slate-950/50 border border-white/5 p-8 rounded-3xl shadow-inner">
-                <h3 className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest mb-4">Descriere Problemă</h3>
+                <h3 className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest mb-4">Descriere Problema</h3>
                 <p className="text-white text-lg leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
                 
                 {mainAttachmentUrl && (
                     <div className="mt-8 border-t border-white/5 pt-6">
-                        <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2"><FaPaperclip /> Atașament Inițial</p>
+                        <p className="text-blue-200/40 text-[10px] font-black uppercase tracking-widest mb-3 flex items-center gap-2"><FaPaperclip /> Atasament Initial</p>
                         <div 
                             className="relative group cursor-pointer w-full max-w-sm rounded-2xl overflow-hidden border border-white/10 shadow-lg bg-black" 
                             onClick={() => setFullScreenImage(mainAttachmentUrl)}
                         >
-                            <img src={mainAttachmentUrl} alt="Document atașat" className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
+                            <img src={mainAttachmentUrl} alt="Document atasat" className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
                             <div className="absolute inset-0 bg-blue-900/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <FaSearchPlus className="text-white text-4xl drop-shadow-2xl" />
                             </div>
@@ -288,7 +288,7 @@ function Ticket() {
       {ticket?.status === 'closed' && !ticket?.feedback?.isSubmitted && (
         <div className="w-full max-w-5xl bg-gradient-to-br from-indigo-900/40 to-purple-900/40 backdrop-blur-xl border border-indigo-500/30 p-8 rounded-[2.5rem] shadow-[0_0_40px_rgba(79,70,229,0.15)] mb-8 animate-in slide-in-from-bottom-5">
             <h3 className="text-2xl font-black text-white uppercase italic drop-shadow-lg mb-6 flex items-center gap-3">
-                <FaStar className="text-yellow-400" /> Vă rugăm să lăsați un feedback
+                <FaStar className="text-yellow-400" /> Va rugam sa lasati un feedback
             </h3>
             <form onSubmit={onFeedbackSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -311,7 +311,7 @@ function Ticket() {
                          <input 
                             type="text" 
                             className="w-full bg-slate-950/60 border border-white/10 text-white rounded-xl p-4 focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-600"
-                            placeholder="Adăugați detalii (opțional)..."
+                            placeholder="Adaugati detalii (optional)..."
                             value={feedbackComment}
                             onChange={(e) => setFeedbackComment(e.target.value)}
                          />
@@ -330,7 +330,7 @@ function Ticket() {
                 <FaStar className="text-3xl text-yellow-400" />
             </div>
             <div>
-                <p className="text-yellow-200/60 text-[10px] font-black uppercase tracking-widest">Feedback Înregistrat</p>
+                <p className="text-yellow-200/60 text-[10px] font-black uppercase tracking-widest">Feedback Inregistrat</p>
                 <div className="flex items-center gap-3">
                     <span className="text-2xl font-black text-white">{ticket.feedback.rating} / 5</span>
                     <span className="text-slate-400 italic">"{ticket.feedback.comment || 'Niciun comentariu.'}"</span>
@@ -349,7 +349,7 @@ function Ticket() {
         
         {ticket?.status !== 'closed' && (
             <button onClick={() => setModalIsOpen(true)} className="flex-1 min-w-[200px] bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm border border-white/5">
-                <FaPlus /> Adaugă Notă
+                <FaPlus /> Adauga Nota
             </button>
         )}
         
@@ -361,7 +361,7 @@ function Ticket() {
 
         {user && user.role?.toLowerCase() !== 'angajat' && ticket?.status !== 'closed' && (
             <button onClick={() => setEscalateModalOpen(true)} className="flex-1 min-w-[200px] bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
-                <FaShare /> Transferă Tichetul
+                <FaShare /> Transfera Tichetul
             </button>
         )}
       </div>
@@ -375,7 +375,7 @@ function Ticket() {
                 <NoteItem key={note._id} note={note} onImageClick={setFullScreenImage} />
             ))
         ) : (
-            <div className="text-center py-10 bg-slate-900/40 rounded-3xl border border-white/5 italic text-blue-200/30">Nu există activitate recentă.</div>
+            <div className="text-center py-10 bg-slate-900/40 rounded-3xl border border-white/5 italic text-blue-200/30">Nu exista activitate recenta.</div>
         )}
       </div>
 
@@ -383,7 +383,7 @@ function Ticket() {
         <button 
           onClick={() => {
             if (user?.role?.toLowerCase() !== 'angajat' && ticket?.status === 'new') {
-              toast.error("Vă rugăm să preluați tichetul înainte de a-l rezolva.", {
+              toast.error("Va rugam sa preluati tichetul inainte de a-l rezolva.", {
                 icon: "⚠️",
                 theme: "dark"
               });
@@ -399,8 +399,8 @@ function Ticket() {
           `}
         >
           {user?.role?.toLowerCase() === 'angajat' && ticket?.status === 'new' 
-            ? 'Anulează Cererea' 
-            : (ticket?.status === 'new' ? 'Preluare Obligatorie' : 'Marchează Tichetul Rezolvat')}
+            ? 'Anuleaza Cererea' 
+            : (ticket?.status === 'new' ? 'Preluare Obligatorie' : 'Marcheaza Tichetul Rezolvat')}
         </button>
       )}
 
@@ -408,13 +408,13 @@ function Ticket() {
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
               <div className="bg-[#1e293b] border border-white/20 rounded-[2.5rem] shadow-2xl w-full max-w-xl relative overflow-hidden ring-1 ring-white/10">
                   <div className="px-8 py-6 border-b border-white/5 flex justify-between items-center bg-white/5">
-                      <h2 className="text-xl font-black text-white tracking-widest uppercase italic">Adăugare Notă</h2>
+                      <h2 className="text-xl font-black text-white tracking-widest uppercase italic">Adaugare Nota</h2>
                       <button onClick={() => setModalIsOpen(false)} className="text-blue-200/40 hover:text-white p-2 bg-white/5 rounded-full"><FaTimes /></button>
                   </div>
                   <form onSubmit={onNoteSubmit} className="p-8 space-y-6">
                       <textarea 
                           className="w-full bg-slate-900 border border-white/10 rounded-2xl p-5 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all min-h-[120px] placeholder:text-slate-600"
-                          placeholder="Introduceți un mesaj sau un update pentru tichet..."
+                          placeholder="Introduceti un mesaj sau un update pentru tichet..."
                           value={noteText}
                           onChange={(e) => setNoteText(e.target.value)}
                           required
@@ -425,7 +425,7 @@ function Ticket() {
                               <label htmlFor="note-file" className="flex items-center justify-center w-full h-20 border-2 border-white/10 border-dashed rounded-xl cursor-pointer bg-slate-950/40 hover:bg-slate-900/60 hover:border-blue-500/50 transition-all group">
                                   <div className="flex items-center gap-3">
                                       <FaCloudUploadAlt className="text-blue-400 text-2xl group-hover:scale-110 transition-transform" />
-                                      <span className="text-blue-200/60 text-sm">Atașați un fișier (opțional)</span>
+                                      <span className="text-blue-200/60 text-sm">Atasati un fisier (optional)</span>
                                   </div>
                                   <input id="note-file" type="file" className="hidden" onChange={(e) => setFile(e.target.files[0])} />
                               </label>
@@ -438,7 +438,7 @@ function Ticket() {
                       </div>
 
                       <button type="submit" disabled={isUploadingNote} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all uppercase tracking-widest disabled:opacity-50">
-                          {isUploadingNote ? 'Se trimite mesajul...' : 'Trimite Notă'}
+                          {isUploadingNote ? 'Se trimite mesajul...' : 'Trimite Nota'}
                       </button>
                   </form>
               </div>
@@ -450,36 +450,36 @@ function Ticket() {
               <div className="bg-slate-900 border border-purple-500/30 rounded-[2.5rem] p-10 max-w-lg w-full shadow-[0_0_50px_rgba(168,85,247,0.15)] relative">
                   <button onClick={() => setEscalateModalOpen(false)} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><FaTimes size={20}/></button>
                   <FaShare size={40} className="text-purple-500 mx-auto mb-6" />
-                  <h2 className="text-2xl font-black text-white mb-2 uppercase text-center">Transferă Tichetul</h2>
-                  <p className="text-slate-400 mb-6 text-sm text-center">Alegeți persoana către care doriți să transferați responsabilitatea acestui tichet.</p>
+                  <h2 className="text-2xl font-black text-white mb-2 uppercase text-center">Transfera Tichetul</h2>
+                  <p className="text-slate-400 mb-6 text-sm text-center">Alegeti persoana catre care doriti sa transferati responsabilitatea acestui tichet.</p>
                   
                   <div className="space-y-4 mb-8">
                       <div>
-                          <label className="text-blue-200/60 text-xs font-black uppercase tracking-widest mb-2 block">Selectați un Coleg (Agent/Admin)</label>
+                          <label className="text-blue-200/60 text-xs font-black uppercase tracking-widest mb-2 block">Selectati un Coleg (Agent/Admin)</label>
                           <select 
                               value={selectedAgent} 
                               onChange={(e) => setSelectedAgent(e.target.value)}
                               className="w-full bg-slate-950 border border-white/10 text-white rounded-xl p-4 focus:ring-2 focus:ring-purple-500 outline-none"
                           >
-                              <option value="">-- Alegeți din listă --</option>
+                              <option value="">-- Alegeti din lista --</option>
                               {agentsList.map(agent => (
                                   <option key={agent._id} value={agent._id}>{agent.name} ({agent.role})</option>
                               ))}
                           </select>
                       </div>
                       <div>
-                          <label className="text-blue-200/60 text-xs font-black uppercase tracking-widest mb-2 block">Motivul Transferului (Opțional)</label>
+                          <label className="text-blue-200/60 text-xs font-black uppercase tracking-widest mb-2 block">Motivul Transferului (Optional)</label>
                           <textarea 
                               value={escalateReason}
                               onChange={(e) => setEscalateReason(e.target.value)}
-                              placeholder="Oferiți câteva detalii colegului..."
+                              placeholder="Oferiti cateva detalii colegului..."
                               className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-purple-500 outline-none min-h-[100px]"
                           ></textarea>
                       </div>
                   </div>
 
                   <button onClick={onEscalateSubmit} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-4 rounded-xl transition-all uppercase text-xs tracking-widest shadow-lg">
-                      Confirmă Transferul
+                      Confirma Transferul
                   </button>
               </div>
           </div>
@@ -505,10 +505,10 @@ function Ticket() {
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 animate-in zoom-in duration-200">
               <div className="bg-slate-900 border border-red-500/30 rounded-[2.5rem] p-10 max-w-md w-full text-center shadow-[0_0_50px_rgba(239,68,68,0.2)]">
                   <FaExclamationTriangle size={50} className="text-red-500 mx-auto mb-6" />
-                  <h2 className="text-2xl font-black text-white mb-4 uppercase">Confirmați Acțiunea</h2>
+                  <h2 className="text-2xl font-black text-white mb-4 uppercase">Confirmati Actiunea</h2>
                   <div className="flex gap-4 mt-8">
-                      <button onClick={confirmClose} className="flex-1 bg-red-600 text-white font-black py-4 rounded-2xl hover:bg-red-500 transition-all uppercase text-xs tracking-widest shadow-[0_0_20px_rgba(239,68,68,0.4)]">Da, Continuă</button>
-                      <button onClick={() => setConfirmationOpen(false)} className="flex-1 bg-white/10 text-white font-black py-4 rounded-2xl hover:bg-white/20 transition-all uppercase text-xs tracking-widest border border-white/5">Anulează</button>
+                      <button onClick={confirmClose} className="flex-1 bg-red-600 text-white font-black py-4 rounded-2xl hover:bg-red-500 transition-all uppercase text-xs tracking-widest shadow-[0_0_20px_rgba(239,68,68,0.4)]">Da, Continua</button>
+                      <button onClick={() => setConfirmationOpen(false)} className="flex-1 bg-white/10 text-white font-black py-4 rounded-2xl hover:bg-white/20 transition-all uppercase text-xs tracking-widest border border-white/5">Anuleaza</button>
                   </div>
               </div>
           </div>

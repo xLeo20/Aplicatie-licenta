@@ -73,7 +73,7 @@ function Tickets() {
     doc.rect(0, 0, pageWidth, 40, 'F');
     doc.setFontSize(22);
     doc.setTextColor(255, 255, 255);
-    doc.text("Sistem Asistență Deskflow", 14, 20); 
+    doc.text("Sistem Asistenta Deskflow", 14, 20); 
     
     doc.setFontSize(10);
     doc.setTextColor(96, 165, 250);
@@ -86,7 +86,7 @@ function Tickets() {
     
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(12);
-    doc.text(`Tichete găsite: ${filteredTickets.length}`, 14, 50);
+    doc.text(`Tichete gasite: ${filteredTickets.length}`, 14, 50);
     doc.line(14, 55, pageWidth - 14, 55);
 
     const tableColumn = ["ID", "Categorie", "Domeniu", "Prioritate", "Status Curent"];
@@ -156,7 +156,7 @@ function Tickets() {
         
         <div className="flex gap-4">
             <button onClick={exportCSV} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 px-6 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all transform hover:scale-105 active:scale-95 text-sm uppercase tracking-widest">
-              <FaFileCsv size={18} /> Exportă Excel
+              <FaFileCsv size={18} /> Exporta Excel
             </button>
             <button onClick={exportPDF} className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white font-black py-3 px-6 rounded-2xl shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all transform hover:scale-105 active:scale-95 text-sm uppercase tracking-widest">
               <FaFilePdf size={18} /> Generare PDF
@@ -171,7 +171,7 @@ function Tickets() {
             <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 group-focus-within:scale-110 transition-transform" />
             <input 
               type="text"
-              placeholder="Caută după ID sau categorie..."
+              placeholder="Cauta dupa ID sau categorie..."
               className="w-full bg-slate-950/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-blue-200/20 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -186,15 +186,15 @@ function Tickets() {
               onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="Toate Statusurile" className="bg-slate-900">Toate Tichetele</option>
-              <option value="new" className="bg-slate-900">Status: În Așteptare</option>
-              <option value="open" className="bg-slate-900">Status: În Lucru</option>
-              <option value="suspended" className="bg-slate-900">Status: Pe Pauză</option>
+              <option value="new" className="bg-slate-900">Status: In Asteptare</option>
+              <option value="open" className="bg-slate-900">Status: In Lucru</option>
+              <option value="suspended" className="bg-slate-900">Status: Pe Pauza</option>
               <option value="closed" className="bg-slate-900">Status: Rezolvat</option>
             </select>
           </div>
 
           <div className="flex flex-col items-end justify-center text-blue-200/50 font-black uppercase tracking-[0.2em] text-[10px]">
-            <span>Rezultate găsite: <span className="ml-2 bg-blue-500 text-white px-3 py-1 rounded-lg text-xs shadow-lg shadow-blue-500/20">{filteredTickets.length}</span></span>
+            <span>Rezultate gasite: <span className="ml-2 bg-blue-500 text-white px-3 py-1 rounded-lg text-xs shadow-lg shadow-blue-500/20">{filteredTickets.length}</span></span>
             {filteredTickets.length > 0 && <span className="mt-2 opacity-50">Pagina {currentPage} din {totalPages}</span>}
           </div>
         </div>
@@ -202,13 +202,12 @@ function Tickets() {
 
       <div className="w-full max-w-6xl space-y-4">
         
-        {/* Antet Tabel Desktop */}
         <div className="hidden md:grid grid-cols-5 gap-4 px-8 py-4 text-blue-200/40 font-black uppercase text-[10px] tracking-[0.2em] border-b border-white/5 mb-2">
-          <div className="text-left">Referință</div>
+          <div className="text-left">Referinta</div>
           <div className="text-left">Detalii</div>
           <div className="text-center">Termen (SLA)</div>
           <div className="text-center">Status Curent</div>
-          <div className="text-right">Acțiune</div>
+          <div className="text-right">Actiune</div>
         </div>
 
         {currentTickets.length > 0 ? (
@@ -251,7 +250,7 @@ function Tickets() {
           </>
         ) : (
           <div className="w-full bg-white/5 backdrop-blur-sm border border-white/5 rounded-[2.5rem] py-24 text-center">
-            <p className="text-blue-200/30 text-xl italic font-medium tracking-tight">Niciun tichet nu a fost găsit conform criteriilor selectate.</p>
+            <p className="text-blue-200/30 text-xl italic font-medium tracking-tight">Niciun tichet nu a fost gasit conform criteriilor selectate.</p>
           </div>
         )}
       </div>

@@ -8,26 +8,22 @@ import Spinner from '../components/Spinner'
 import { io } from 'socket.io-client';
 const socket = io('http://localhost:5000'); 
 
-// Componenta de tip Level 0 Support (Self-Service / FAQ)
 function KnowledgeBase() {
   const { user } = useSelector((state) => state.auth)
 
   const [faqs, setFaqs] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   
-  // Trackeaza state-ul elementelor din UI de tip accordion (pastreaza id-ul nodului expandat)
   const [activeFaq, setActiveFaq] = useState(null)
   
-  // Handlere de state pentru engine-ul local de search & filter
   const [filterCategory, setFilterCategory] = useState('Toate')
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Controlere pentru modalul CRUD de adaugare inregistrari noi
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({
     question: '',
     answer: '',
-    category: 'IT'
+    category: 'IT Hardware & Software'
   })
   const { question, answer, category } = formData
 
@@ -38,17 +34,15 @@ function KnowledgeBase() {
       setFaqs(data)
       setIsLoading(false)
     } catch (error) {
-      toast.error('Descarcarea bazei de cunostinte a esuat.')
+      toast.error('Eroare la descarcarea bazei de cunostinte.')
       setIsLoading(false)
     }
   }
 
-  // Hook pentru popularea initiala a DOM-ului si setarea conexiunilor real-time
   useEffect(() => {
     fetchFaqs()
 
     socket.on('faqChanged', () => {
-        // Trigger de re-fetch atunci cand un admin adauga/sterge un articol
         fetchFaqs(); 
     });
 
@@ -57,7 +51,6 @@ function KnowledgeBase() {
     };
   }, [user.token])
 
-  // Handler de submitere pentru articole noi (restrictionat din UI si API pentru level 1+ support)
   const onSubmit = async (e) => {
     e.preventDefault()
     try {
@@ -65,29 +58,28 @@ function KnowledgeBase() {
       await axios.post('/api/faqs', formData, config)
       
       setIsModalOpen(false)
-      setFormData({ question: '', answer: '', category: 'IT' })
-      toast.success('Inregistrare de sistem creata cu succes.')
+      setFormData({ question: '', answer: '', category: 'IT Hardware & Software' })
+      toast.success('Articolul a fost adaugat cu succes.')
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Nu s-a putut scrie in baza de date.')
+      toast.error(error.response?.data?.message || 'Nu am putut salva articolul.')
     }
   }
 
   const onDelete = async (id) => {
-    if(window.confirm('Esti sigur ca vrei sa arhivezi definitiv acest articol?')) {
+    if(window.confirm('Esti sigur ca vrei sa stergi definitiv acest articol?')) {
       try {
         const config = { headers: { Authorization: `Bearer ${user.token}` } }
         await axios.delete(`/api/faqs/${id}`, config)
         
-        toast.success('Drop executat.')
+        toast.success('Articolul a fost sters.')
       } catch (error) {
-        toast.error('Stergere refuzata de server.')
+        toast.error('Eroare la stergerea articolului.')
       }
     }
   }
 
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value })
 
-  // Logica simpla de toggle. Daca este expandat, il colapseaza, altfel il expandeaza
   const toggleAccordion = (id) => {
     if (activeFaq === id) {
       setActiveFaq(null) 
@@ -96,7 +88,6 @@ function KnowledgeBase() {
     }
   }
 
-  // Pipeline-ul de prelucrare a array-ului: aplicam filter pe categorie si apoi match pe search string
   const filteredFaqs = faqs.filter(faq => {
     const matchCategory = filterCategory === 'Toate' || faq.category === filterCategory
     const matchSearch = faq.question.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -104,7 +95,6 @@ function KnowledgeBase() {
     return matchCategory && matchSearch
   })
 
-  // Extragerea categoriilor unice din dataset pentru a popula butoanele de filtrare dinamice
   const categories = ['Toate', ...new Set(faqs.map(faq => faq.category))]
 
   if (isLoading) return <Spinner />
@@ -112,19 +102,17 @@ function KnowledgeBase() {
   return (
     <div className="w-full flex flex-col items-center px-4 py-8 animate-in fade-in duration-700">
       
-      {/* Componenta Header Documentatie */}
       <div className="w-full max-w-4xl flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
         <div className="flex items-center gap-4 text-center md:text-left">
           <div className="w-14 h-14 bg-indigo-600/20 text-indigo-400 rounded-2xl flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(99,102,241,0.3)]">
             <FaBook />
           </div>
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic drop-shadow-lg">FAQ & Tutorials</h1>
-            <p className="text-indigo-300/50 text-xs font-bold tracking-widest uppercase mt-1">Sistem de Autogestionare</p>
+            <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic drop-shadow-lg">Baza de Cunostinte</h1>
+            <p className="text-indigo-300/50 text-xs font-bold tracking-widest uppercase mt-1">Ghiduri si Solutii Rapide</p>
           </div>
         </div>
 
-        {/* Conditionarea randarii butonului de insert bazata pe rolul salvat in Redux */}
         {user && (user.role === 'admin' || user.role === 'agent') && (
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -135,22 +123,19 @@ function KnowledgeBase() {
         )}
       </div>
 
-      {/* Container Parametrii de Cautare */}
       <div className="w-full max-w-4xl bg-slate-900/60 backdrop-blur-xl border border-white/10 p-6 rounded-[2rem] shadow-2xl mb-8 ring-1 ring-white/5 flex flex-col gap-6">
         
-        {/* Modul Input Cautare Globala */}
         <div className="relative group">
           <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400 group-focus-within:scale-110 transition-transform" />
           <input 
             type="text"
-            placeholder="Interogare log-uri (ex: parola, server, document)..."
+            placeholder="Cauta o problema (ex: parola uitata, lipsa internet)..."
             className="w-full bg-slate-950/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-white/20"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        {/* Modul Tags Dinamice */}
         <div className="flex flex-wrap gap-3">
           <FaTags className="text-white/30 text-xl mr-2 self-center" />
           {categories.map((cat, index) => (
@@ -169,7 +154,6 @@ function KnowledgeBase() {
         </div>
       </div>
 
-      {/* Maparea listei de elemente colapsabile */}
       <div className="w-full max-w-4xl space-y-4">
         {filteredFaqs.length > 0 ? (
           filteredFaqs.map((faq) => (
@@ -179,7 +163,6 @@ function KnowledgeBase() {
                 activeFaq === faq._id ? 'border-indigo-500/50 ring-1 ring-indigo-500/20 shadow-[0_0_30px_rgba(99,102,241,0.1)]' : 'border-white/10 hover:border-white/20'
               }`}
             >
-              {/* Trigger Acordeon */}
               <div 
                 className="p-6 cursor-pointer flex justify-between items-center gap-4 select-none"
                 onClick={() => toggleAccordion(faq._id)}
@@ -193,12 +176,11 @@ function KnowledgeBase() {
                   </h3>
                 </div>
                 <div className="flex items-center gap-4">
-                  {/* Buton operatiune drop - protejat de RBAC */}
                   {user && (user.role === 'admin' || user.role === 'agent') && (
                     <button 
                       onClick={(e) => { e.stopPropagation(); onDelete(faq._id); }} 
                       className="text-white/20 hover:text-red-500 transition-colors p-2 z-10"
-                      title="Forare stergere din DB"
+                      title="Sterge Articol"
                     >
                       <FaTrash />
                     </button>
@@ -209,7 +191,6 @@ function KnowledgeBase() {
                 </div>
               </div>
 
-              {/* Expansiune Continut - Tranzitie CSS */}
               <div 
                 className={`transition-all duration-500 ease-in-out ${
                   activeFaq === faq._id ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
@@ -223,47 +204,46 @@ function KnowledgeBase() {
           ))
         ) : (
           <div className="text-center py-20 bg-white/5 rounded-[2.5rem] border border-white/5 backdrop-blur-sm">
-            <p className="text-white/40 text-lg italic">Dataset-ul nu contine valori pentru acest set de filtre.</p>
+            <p className="text-white/40 text-lg italic">Nu am gasit niciun articol pentru aceasta cautare.</p>
           </div>
         )}
       </div>
 
-      {/* Componenta Layer Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
           <div className="bg-[#1e293b] border border-white/20 rounded-[2.5rem] shadow-2xl w-full max-w-xl relative overflow-hidden ring-1 ring-white/10">
             <div className="px-8 py-6 border-b border-white/5 flex justify-between items-center bg-white/5">
                 <h2 className="text-xl font-black text-white tracking-widest uppercase italic flex items-center gap-2">
-                  <FaPlus className="text-indigo-400" /> Referinta Noua
+                  <FaPlus className="text-indigo-400" /> Adauga Articol Nou
                 </h2>
                 <button onClick={() => setIsModalOpen(false)} className="text-blue-200/40 hover:text-white p-2 bg-white/5 rounded-full transition-colors"><FaTimes /></button>
             </div>
             
             <form onSubmit={onSubmit} className="p-8 space-y-6">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-white/70 uppercase tracking-widest ml-1">Titlu Indrumar</label>
-                  <input type="text" name="question" value={question} onChange={onChange} required placeholder="ex: Cum depanez conexiunea de retea?" 
+                  <label className="text-[10px] font-black text-white/70 uppercase tracking-widest ml-1">Intrebare / Titlu</label>
+                  <input type="text" name="question" value={question} onChange={onChange} required placeholder="ex: Cum imi resetez parola de la mail?" 
                     className="w-full bg-slate-900 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-white/20" />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-white/70 uppercase tracking-widest ml-1">Mapare Grup / Indexare</label>
+                  <label className="text-[10px] font-black text-white/70 uppercase tracking-widest ml-1">Categorie (Departament)</label>
                   <select name="category" value={category} onChange={onChange} className="w-full bg-slate-900 border border-white/10 rounded-2xl py-3 px-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer">
-                    <option value="IT">IT Hardware & Software</option>
-                    <option value="HR">Resurse Umane</option>
-                    <option value="Financiar">Financiar / Contabilitate</option>
-                    <option value="General">Sarcini Generale</option>
+                    <option value="IT Hardware & Software">IT Hardware & Software</option>
+                    <option value="Resurse Umane">Resurse Umane</option>
+                    <option value="Financiar / Contabilitate">Financiar / Contabilitate</option>
+                    <option value="Sarcini Generale">Sarcini Generale</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-white/70 uppercase tracking-widest ml-1">Solutie tehnica (Markup Suportat)</label>
-                  <textarea name="answer" value={answer} onChange={onChange} required placeholder="Formatati pasii rezolutiei aici..." 
+                  <label className="text-[10px] font-black text-white/70 uppercase tracking-widest ml-1">Solutie (Pasi de rezolvare)</label>
+                  <textarea name="answer" value={answer} onChange={onChange} required placeholder="Descrie aici solutia pas cu pas..." 
                     className="w-full bg-slate-900 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[150px] placeholder:text-white/20"></textarea>
                 </div>
 
                 <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all uppercase tracking-widest text-sm transform hover:scale-105 active:scale-95">
-                    Commit to Database
+                    Salveaza Articolul
                 </button>
             </form>
           </div>
