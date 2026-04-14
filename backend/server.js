@@ -9,6 +9,9 @@ const cors = require('cors');
 const http = require('http'); 
 const { Server } = require('socket.io');
 
+const Notification = require('./models/notificationModel');
+const { protect } = require('./middleware/authMiddleware');
+
 const PORT = process.env.PORT || 5000;
 
 // Initiem conexiunea la Mongoose
@@ -34,6 +37,14 @@ const io = new Server(server, {
   },
 });
 
+app.get('/api/notifications', protect, async (req, res) => {
+    const notifications = await Notification.find({ 
+        user: req.user.id, 
+        isRead: false 
+    }).sort({ createdAt: -1 });
+    res.status(200).json(notifications);
+});
+
 // Injectam instanta "io" in obiectul global "app" pentru a o putea apela din controllere (ex: la crearea unui tichet)
 app.set('io', io);
 
@@ -44,6 +55,14 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`Conexiune inchisa: ${socket.id}`.gray);
   });
+});
+
+app.put('/api/notifications/clear', protect, async (req, res) => {
+    await Notification.updateMany(
+        { user: req.user.id, isRead: false }, 
+        { isRead: true }
+    );
+    res.status(200).json({ success: true });
 });
 
 // Parsere pentru payload-uri JSON si URL Encoded

@@ -4,6 +4,7 @@ const User = require('../models/userModel');
 const Ticket = require('../models/ticketModel');
 const Note = require('../models/noteModel');
 const sendEmail = require('../utils/sendEmail'); 
+const Notification = require('../models/notificationModel');
 
 // @desc    Preia lista de tichete (filtrata pe rol si departament)
 // @route   GET /api/tickets
@@ -56,6 +57,8 @@ const getTickets = asyncHandler(async (req, res) => {
 
 // @desc    Crearea unui incident/tichet nou
 // @route   POST /api/tickets
+// @desc    Crearea unui incident/tichet nou
+// @route   POST /api/tickets
 const createTicket = asyncHandler(async (req, res) => {
   const { issueType, category, description, priority, attachment } = req.body;
 
@@ -95,7 +98,6 @@ const createTicket = asyncHandler(async (req, res) => {
     io.emit('ticketUpdated'); 
   }
 
-  // 1. Trimite email catre utilizatorul care a deschis tichetul
   try {
     const userMessage = `
       <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
@@ -124,11 +126,25 @@ const createTicket = asyncHandler(async (req, res) => {
     console.log('Eroare mail utilizator:', error)
   }
 
-  // 2. Trimite notificare email INDIVIDUALA catre fiecare agent si administrator
+  // LOGICA PENTRU NOTIFICARI SI MAILURI BAZATE PE DEPARTAMENT
   try {
-    const staffMembers = await User.find({ role: { $in: ['agent', 'admin'] } });
+    const allStaff = await User.find({ role: { $in: ['agent', 'admin'] } });
+    
+    // Filtram agenții: Păstrăm administratorii (văd tot) și agenții care au voie pe categoria asta
+    const targetStaff = allStaff.filter(staff => {
+        if (staff.role === 'admin') return true;
+        
+        if (staff.department === 'IT Tech') {
+            return ['Hardware & Echipamente', 'Software & Licente', 'Retea & Comunicatii', 'Conturi & Permisiuni'].includes(category);
+        } else if (staff.department === 'General' || staff.department === 'Infrastructura') {
+            return ['Infrastructura Administrativa'].includes(category);
+        } else if (staff.department === 'Resurse Umane') {
+            return ['Cerinte HR', 'Salarizare'].includes(category); 
+        }
+        return false;
+    });
 
-    if (staffMembers.length > 0) {
+    if (targetStaff.length > 0) {
         const staffMessage = `
           <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #fff3cd;">
             <div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; border: 1px solid #ffc107;">
@@ -152,7 +168,23 @@ const createTicket = asyncHandler(async (req, res) => {
           </div>
         `;
 
-        for (const staff of staffMembers) {
+        for (const staff of targetStaff) {
+            // 1. Salvăm notificarea în baza de date pentru clopoțel (IN-APP)
+            await Notification.create({
+                user: staff._id,
+                message: `Tichet NOU #${ticket.ticketId} în departamentul tău (${ticket.category}).`,
+                ticketId: ticket._id
+            });
+
+            // 2. Emitem semnalul WebSockets PENTRU UN SINGUR USER SPECIFIC
+            if (io) {
+                io.emit(`notificare_noua_${staff._id}`, {
+                    message: `Tichet NOU #${ticket.ticketId} creat (${ticket.category})`,
+                    ticketId: ticket._id
+                });
+            }
+
+            // 3. Trimitem mail-ul
             if (staff.email) {
                 try {
                     await sendEmail({
@@ -167,7 +199,7 @@ const createTicket = asyncHandler(async (req, res) => {
         }
     }
   } catch (error) {
-    console.log('Eroare extragere agenti din DB:', error)
+    console.log('Eroare notificare / mail catre agenti:', error)
   }
 
   res.status(201).json(ticket);
