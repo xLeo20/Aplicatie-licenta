@@ -285,7 +285,7 @@ function Ticket() {
       </div>
       )}
 
-      {ticket?.status === 'closed' && !ticket?.feedback?.isSubmitted && (
+      {ticket?.status === 'closed' && !ticket?.feedback?.isSubmitted && user?.role?.toLowerCase() !== 'agent' && (
         <div className="w-full max-w-5xl bg-gradient-to-br from-indigo-900/40 to-purple-900/40 backdrop-blur-xl border border-indigo-500/30 p-8 rounded-[2.5rem] shadow-[0_0_40px_rgba(79,70,229,0.15)] mb-8 animate-in slide-in-from-bottom-5">
             <h3 className="text-2xl font-black text-white uppercase italic drop-shadow-lg mb-6 flex items-center gap-3">
                 <FaStar className="text-yellow-400" /> Va rugam sa lasati un feedback
