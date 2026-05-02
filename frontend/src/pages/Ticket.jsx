@@ -427,7 +427,7 @@ function Ticket() {
                                       <FaCloudUploadAlt className="text-blue-400 text-2xl group-hover:scale-110 transition-transform" />
                                       <span className="text-blue-200/60 text-sm">Atasati un fisier (optional)</span>
                                   </div>
-                                  <input id="note-file" type="file" className="hidden" onChange={(e) => setFile(e.target.files[0])} />
+                                  <input id="note-file" type="file" className="hidden" onChange={(e) => setNoteFile(e.target.files[0])} />
                               </label>
                           ) : (
                               <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/30 p-3 rounded-xl">
