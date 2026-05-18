@@ -70,7 +70,7 @@ function Login() {
             Autentificare
           </h1>
           <p className="text-blue-200/50 font-medium mt-2 text-sm">
-            Conectați-vă pentru a accesa platforma Deskflow
+            Conectati-va pentru a accesa platforma Deskflow
           </p>
         </div>
 
@@ -78,7 +78,7 @@ function Login() {
           
           <div className="space-y-2 group">
             <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-1">
-              Email Instituțional
+              Email Institutional
             </label>
             <div className="relative">
               <FaEnvelope className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-blue-400 transition-colors" />
@@ -88,7 +88,7 @@ function Login() {
                 id="email"
                 name="email"
                 value={email}
-                placeholder="nume@deskflow.ro"
+                placeholder="nume@email.com"
                 onChange={onChange}
                 required
               />
@@ -97,7 +97,7 @@ function Login() {
 
           <div className="space-y-2 group">
             <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-1">
-              Parolă de Acces
+              Parola de Acces
             </label>
             <div className="relative">
               <FaLock className="absolute left-5 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-blue-400 transition-colors" />
