@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useSelector, useDispatch } from 'react-redux'
-import { getTicket, closeTicket, suspendTicket, assignTicket, addFeedback, escalateTicket } from '../features/tickets/ticketSlice'
+import { getTicket, closeTicket, suspendTicket, resumeTicket, assignTicket, addFeedback, escalateTicket } from '../features/tickets/ticketSlice'
 import { getNotes, createNote } from '../features/notes/noteSlice'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch, FaStar, FaShare, FaBug, FaLayerGroup } from 'react-icons/fa' 
+import { FaArrowLeft, FaPlus, FaExclamationTriangle, FaPause, FaPlay, FaCheckCircle, FaUserTag, FaBoxOpen, FaCalendarAlt, FaTimes, FaCommentDots, FaCloudUploadAlt, FaPaperclip, FaSearchPlus, FaStopwatch, FaStar, FaShare, FaBug, FaLayerGroup } from 'react-icons/fa'
 import Spinner from '../components/Spinner'
 import NoteItem from '../components/NoteItem'
 import SLACountdown from '../components/SLACountdown'
@@ -108,15 +108,20 @@ function Ticket() {
   }
 
   const onTicketSuspend = () => {
-      if(window.confirm('Sunteti sigur ca doriti sa suspendati acest tichet (timpul de rezolvare se va opri)?')) {
-          dispatch(suspendTicket(ticketId))
-          toast.info('Tichetul a fost suspendat.')
-      }
+      const reason = window.prompt('Specificati motivul suspendarii (ex: astept piese de la furnizor). Lasati gol pentru un mesaj standard:')
+      if (reason === null) return; // Utilizatorul a apasat Anuleaza
+      dispatch(suspendTicket({ ticketId, reason }))
+      toast.info('Tichetul a fost suspendat.')
   }
 
   const onTicketAssign = () => {
     dispatch(assignTicket(ticketId))
     toast.success('Ati preluat tichetul cu succes.')
+  }
+
+  const onTicketResume = () => {
+    dispatch(resumeTicket(ticketId))
+    toast.success('Tichetul a fost reluat. Lucrul continua.')
   }
 
   const onFeedbackSubmit = (e) => {
@@ -359,6 +364,12 @@ function Ticket() {
             </button>
         )}
 
+        {user && user.role?.toLowerCase() !== 'angajat' && ticket?.status === 'suspended' && (
+            <button onClick={onTicketResume} className="flex-1 min-w-[200px] bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
+                <FaPlay /> Reluare Lucru
+            </button>
+        )}
+
         {user && user.role?.toLowerCase() !== 'angajat' && ticket?.status !== 'closed' && (
             <button onClick={() => setEscalateModalOpen(true)} className="flex-1 min-w-[200px] bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaShare /> Transfera Tichetul
@@ -379,8 +390,8 @@ function Ticket() {
         )}
       </div>
 
-      {ticket?.status !== 'closed' && (
-        <button 
+      {ticket?.status !== 'closed' && (user?.role?.toLowerCase() !== 'angajat' || ticket?.status === 'new') && (
+        <button
           onClick={() => {
             if (user?.role?.toLowerCase() !== 'angajat' && ticket?.status === 'new') {
               toast.error("Va rugam sa preluati tichetul inainte de a-l rezolva.", {

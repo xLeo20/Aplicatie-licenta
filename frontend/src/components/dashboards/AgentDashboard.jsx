@@ -70,46 +70,46 @@ function AgentDashboard() {
       
   const maxOtherScore = otherScores.length > 0 ? Math.max(...otherScores) : 0;
 
-  let agentRank = 'Agent Începător';
-  let rankColor = 'text-slate-400'; 
+    let agentRank = 'Membru Nou';
+  let rankColor = 'text-slate-400';
   let rankIcon = <FaMedal className="text-slate-400 text-4xl" />;
-  let bonusMessage = 'Începe să rezolvi tichete pentru a intra în clasament.';
+  let bonusMessage = 'Rezolva primele tichete pentru a aparea in clasamentul echipei.';
   let xpProgress = 0;
 
   if (myResolvedTickets === 0 && maxOtherScore === 0) {
       agentRank = 'Echipa la Start';
-      bonusMessage = 'Fii primul din echipă care rezolvă un tichet!';
+      bonusMessage = 'Niciun tichet rezolvat inca. Poti fi primul din echipa.';
   } else if (myResolvedTickets > maxOtherScore) {
-      agentRank = 'Lider Departament 🏆';
+      agentRank = 'Locul 1 in Echipa';
       rankColor = 'text-yellow-400';
-      rankIcon = <FaTrophy className="text-yellow-400 text-4xl drop-shadow-[0_0_15px_rgba(250,204,21,0.6)] animate-pulse" />;
-      bonusMessage = `Dominație totală! Ai cu ${myResolvedTickets - maxOtherScore} mai multe tichete decât locul 2.`;
+      rankIcon = <FaTrophy className="text-yellow-400 text-4xl drop-shadow-[0_0_15px_rgba(250,204,21,0.6)]" />;
+      bonusMessage = `Esti pe primul loc, cu ${myResolvedTickets - maxOtherScore} tichete mai mult decat urmatorul coleg.`;
       xpProgress = 100;
   } else if (myResolvedTickets === maxOtherScore && myResolvedTickets > 0) {
-      agentRank = 'Co-Lider Echipă ⚔️';
+      agentRank = 'La Egalitate pe Locul 1';
       rankColor = 'text-amber-400';
       rankIcon = <FaTrophy className="text-amber-400 text-4xl drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]" />;
-      bonusMessage = 'Competiție strânsă! Ești la egalitate pe primul loc. Mai rezolvă un tichet!';
-      xpProgress = 90; 
+      bonusMessage = 'Esti la egalitate pe primul loc. Inca un tichet rezolvat te detaseaza.';
+      xpProgress = 90;
   } else {
-      const maxScore = maxOtherScore; 
+      const maxScore = maxOtherScore;
       if (myResolvedTickets >= maxScore * 0.7) {
-          agentRank = 'Senior Specialist ⭐';
+          agentRank = 'Aproape de Lider';
           rankColor = 'text-blue-400';
           rankIcon = <FaStar className="text-blue-400 text-4xl drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]" />;
-          bonusMessage = `Mai ai nevoie de ${maxScore - myResolvedTickets + 1} tichete pentru a trece pe primul loc!`;
+          bonusMessage = `Iti mai trebuie ${maxScore - myResolvedTickets + 1} tichete pentru a trece pe primul loc.`;
           xpProgress = (myResolvedTickets / maxScore) * 100;
       } else if (myResolvedTickets >= maxScore * 0.3) {
-          agentRank = 'Agent Activ';
+          agentRank = 'Peste Medie';
           rankColor = 'text-emerald-400';
           rankIcon = <FaMedal className="text-emerald-400 text-4xl" />;
-          bonusMessage = `Liderul are ${maxScore} tichete rezolvate. Mărește ritmul!`;
+          bonusMessage = `Liderul are ${maxScore} tichete rezolvate. Mai este loc de crestere.`;
           xpProgress = (myResolvedTickets / maxScore) * 100;
       } else {
-          agentRank = 'Junior Support';
+          agentRank = 'Sub Medie';
           rankColor = 'text-slate-400';
           rankIcon = <FaMedal className="text-slate-400 text-4xl" />;
-          bonusMessage = `Liderul a rezolvat deja ${maxScore} tichete. Rezolvă mai multe pentru a avansa!`;
+          bonusMessage = `Liderul a rezolvat ${maxScore} tichete. Rezolva mai multe pentru a urca in clasament.`;
           xpProgress = maxScore > 0 ? (myResolvedTickets / maxScore) * 100 : 0;
       }
   }
@@ -220,7 +220,7 @@ function AgentDashboard() {
           <div className="flex-1 w-full relative z-10">
               <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 gap-2">
                   <div>
-                      <h3 className="text-white text-xs font-black uppercase tracking-widest opacity-60 mb-1">Status Performanță Comparativă</h3>
+                                            <h3 className="text-white text-xs font-black uppercase tracking-widest opacity-60 mb-1">Performanta in Echipa</h3>
                       <h2 className={`text-3xl font-black ${rankColor} uppercase tracking-tighter drop-shadow-md`}>{agentRank}</h2>
                   </div>
                   <div className="text-right">
@@ -281,7 +281,7 @@ function AgentDashboard() {
                   <FaExclamationCircle className="text-red-400" /> Tichete pe Priorități
               </h3>
               <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={256}>
                       <BarChart data={priorityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
                           <XAxis dataKey="name" stroke="#94a3b8" tick={{fontSize: 12}} />
@@ -302,7 +302,7 @@ function AgentDashboard() {
               <FaChartLine className="text-emerald-400" /> Volum Tichete Noi (Ultimele 14 zile active)
           </h3>
           <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height={288}>
                   <LineChart data={timelineData} margin={{ top: 10, right: 20, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
                       <XAxis dataKey="name" stroke="#94a3b8" tick={{fontSize: 12}} />

@@ -17,6 +17,11 @@ const getNotes = asyncHandler(async (req, res) => {
 
   const ticket = await Ticket.findById(req.params.ticketId);
 
+  if (!ticket) {
+    res.status(404);
+    throw new Error('Tichetul asociat nu a fost gasit.');
+  }
+
   // Verificam permisiunile: doar creatorul tichetului sau echipa IT au voie sa citeasca mesajele
   if (ticket.user.toString() !== req.user.id && user.role !== 'agent' && user.role !== 'admin') {
     res.status(401);
@@ -42,6 +47,11 @@ const addNote = asyncHandler(async (req, res) => {
   }
 
   const ticket = await Ticket.findById(req.params.ticketId);
+
+  if (!ticket) {
+    res.status(404);
+    throw new Error('Tichetul asociat nu a fost gasit.');
+  }
 
   // Protectie de acces inainte de a salva nota
   if (ticket.user.toString() !== req.user.id && user.role !== 'agent' && user.role !== 'admin') {

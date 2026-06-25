@@ -67,6 +67,12 @@ const ticketSchema = mongoose.Schema({
         type: Date,
         required: false
     },
+    // Momentul la care tichetul a fost suspendat. Folosit pentru a calcula durata pauzei
+    // si a decala deadline-ul SLA la reluare (freeze SLA real).
+    suspendedAt: {
+        type: Date,
+        default: null
+    },
     // Utilizatorul tehnician care si-a insusit sarcina rezolvarii
     assignedTo: {
         type: mongoose.Schema.Types.ObjectId,

@@ -50,9 +50,11 @@ const closeTicket = async (ticketId, token) => {
     },
   }
 
+  // Folosim ruta dedicata /close pentru a declansa si nota de sistem + email-ul de rezolvare,
+  // nu doar simpla schimbare de status.
   const response = await axios.put(
-    API_URL + ticketId,
-    { status: 'closed' },
+    API_URL + ticketId + '/close',
+    {},
     config
   )
 
@@ -66,10 +68,17 @@ const assignTicket = async (ticketId, token) => {
   return response.data
 }
 
-// Inghetarea target-ului SLA 
-const suspendTicket = async (ticketId, token) => {
+// Inghetarea target-ului SLA
+const suspendTicket = async (ticketId, reason, token) => {
   const config = { headers: { Authorization: `Bearer ${token}` } }
-  const response = await axios.put(API_URL + ticketId + '/suspend', {}, config)
+  const response = await axios.put(API_URL + ticketId + '/suspend', { reason }, config)
+  return response.data
+}
+
+// Reluarea lucrului la un tichet suspendat (SLA reporneste)
+const resumeTicket = async (ticketId, token) => {
+  const config = { headers: { Authorization: `Bearer ${token}` } }
+  const response = await axios.put(API_URL + ticketId + '/resume', {}, config)
   return response.data
 }
 
@@ -105,8 +114,9 @@ const ticketService = {
   getTicket,
   closeTicket,
   assignTicket,
-  suspendTicket, 
-  addFeedback, 
+  suspendTicket,
+  resumeTicket,
+  addFeedback,
   escalateTicket
 }
 

@@ -77,7 +77,10 @@ const changePassword = asyncHandler(async (req, res) => {
 
 // @desc    Înregistrarea in baza de date a persoanelor din exterior
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, role, department } = req.body;
+  // ATENTIE: NU extragem 'role' din body. Inregistrarea publica nu trebuie
+  // sa permita unui utilizator sa isi aleaga singur rolul (escaladare de privilegii).
+  // Rolurile de 'agent'/'admin' se atribuie strict din panoul de administrare.
+  const { name, email, password, department } = req.body;
 
   if (!name || !email || !password) {
     res.status(400);
@@ -98,7 +101,7 @@ const registerUser = asyncHandler(async (req, res) => {
     name,
     email,
     password: hashedPassword,
-    role: role || 'angajat', 
+    role: 'angajat', // Rol fortat la inregistrarea publica
     department: department || 'General'
   });
 
@@ -179,7 +182,8 @@ const uploadProfilePhoto = asyncHandler(async (req, res) => {
 
 // @desc    Vizualizare a intregului model al angajatilor pentru CMS
 const getAllUsers = asyncHandler(async (req, res) => {
-    const users = await User.find({});
+    // Excludem hash-ul parolei din raspuns pentru a nu expune credentialele in frontend
+    const users = await User.find({}).select('-password');
     res.status(200).json(users);
 });
 

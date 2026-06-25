@@ -1,0 +1,26 @@
+# Dependinte
+node_modules/
+**/node_modules/
+
+# Variabile de mediu (secrete)
+.env
+**/.env
+!**/.env.example
+
+# Build output
+dist/
+build/
+frontend/dist/
+
+# Fisiere uploadate de utilizatori (pastram doar folderul gol prin .gitkeep)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Loguri
+*.log
+npm-debug.log*
+
+# Sistem / IDE
+.DS_Store
+.vscode/
+.idea/

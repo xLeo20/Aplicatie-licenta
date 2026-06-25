@@ -37,4 +37,25 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 });
 
-module.exports = { protect };
+// Middleware de autorizare: permite accesul exclusiv conturilor cu rol de administrator.
+// Se monteaza DUPA 'protect', deoarece se bazeaza pe req.user populat de acesta.
+const admin = asyncHandler(async (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403);
+    throw new Error('Acces interzis. Sunt necesare privilegii de administrator.');
+  }
+});
+
+// Middleware de autorizare pentru personalul operational (agenti + admini).
+const staff = asyncHandler(async (req, res, next) => {
+  if (req.user && (req.user.role === 'agent' || req.user.role === 'admin')) {
+    next();
+  } else {
+    res.status(403);
+    throw new Error('Acces interzis. Sunt necesare privilegii de personal IT.');
+  }
+});
+
+module.exports = { protect, admin, staff };
