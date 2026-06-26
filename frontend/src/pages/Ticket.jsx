@@ -197,6 +197,14 @@ function Ticket() {
 
   const mainAttachmentUrl = getAttachmentUrl(ticket?.attachment);
 
+  // Un agent nu poate actiona pe un tichet asignat ALTUI agent (suspendare, reluare,
+  // transfer, rezolvare). Adminul are acces complet; agentul asignat la fel.
+  const assignedToId = ticket?.assignedTo?._id || ticket?.assignedTo;
+  const isOtherAgentsTicket =
+    user?.role?.toLowerCase() === 'agent' &&
+    assignedToId &&
+    assignedToId !== user?._id;
+
   return (
     <div className="w-full flex flex-col items-center px-4 py-10 animate-in fade-in duration-500">
       
@@ -358,19 +366,19 @@ function Ticket() {
             </button>
         )}
         
-        {user && user.role?.toLowerCase() !== 'angajat' && ticket?.status !== 'closed' && ticket?.status !== 'suspended' && (
+        {user && user.role?.toLowerCase() !== 'angajat' && !isOtherAgentsTicket && ticket?.status !== 'closed' && ticket?.status !== 'suspended' && (
             <button onClick={onTicketSuspend} className="flex-1 min-w-[200px] bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaPause /> Suspendare (Hold)
             </button>
         )}
 
-        {user && user.role?.toLowerCase() !== 'angajat' && ticket?.status === 'suspended' && (
+        {user && user.role?.toLowerCase() !== 'angajat' && !isOtherAgentsTicket && ticket?.status === 'suspended' && (
             <button onClick={onTicketResume} className="flex-1 min-w-[200px] bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaPlay /> Reluare Lucru
             </button>
         )}
 
-        {user && user.role?.toLowerCase() !== 'angajat' && ticket?.status !== 'closed' && (
+        {user && user.role?.toLowerCase() !== 'angajat' && !isOtherAgentsTicket && ticket?.status !== 'closed' && (
             <button onClick={() => setEscalateModalOpen(true)} className="flex-1 min-w-[200px] bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
                 <FaShare /> Transfera Tichetul
             </button>
@@ -390,7 +398,7 @@ function Ticket() {
         )}
       </div>
 
-      {ticket?.status !== 'closed' && (user?.role?.toLowerCase() !== 'angajat' || ticket?.status === 'new') && (
+      {ticket?.status !== 'closed' && !isOtherAgentsTicket && (user?.role?.toLowerCase() !== 'angajat' || ticket?.status === 'new') && (
         <button
           onClick={() => {
             if (user?.role?.toLowerCase() !== 'angajat' && ticket?.status === 'new') {

@@ -212,7 +212,7 @@ function AdminUsers() {
                             <td className="px-8 py-5 whitespace-nowrap text-right">
                                 <div className="flex items-center justify-end gap-5 opacity-40 group-hover:opacity-100 transition-opacity">
                                     <button onClick={() => openEditModal(u)} className="text-amber-400 hover:text-amber-300 transition-colors transform hover:scale-125" title="Editează Cont"><FaEdit size={20}/></button>
-                                    {u._id !== user._id && (
+                                    {u._id !== user?._id && (
                                         <button onClick={() => deleteUser(u._id)} className="text-red-400 hover:text-red-300 transition-colors transform hover:scale-125" title="Șterge Cont"><FaTrash size={20}/></button>
                                     )}
                                 </div>

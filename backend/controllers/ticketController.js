@@ -323,6 +323,13 @@ const assignTicket = asyncHandler(async (req, res) => {
       throw new Error('Tichetul este deja inchis si nu mai poate fi preluat.');
   }
 
+  // Anti-"furt" de tichet: daca e deja preluat de ALT agent, blocam preluarea.
+  // Doar un admin poate reasigna direct; agentii folosesc functia de transfer (escaladare).
+  if (ticket.assignedTo && ticket.assignedTo.toString() !== user.id && user.role !== 'admin') {
+      res.status(400);
+      throw new Error('Tichetul este deja preluat de alt agent. Foloseste functia de transfer pentru reasignare.');
+  }
+
   const updatedTicket = await Ticket.findByIdAndUpdate(
     req.params.id,
     { status: 'open', assignedTo: user.id },
@@ -393,6 +400,12 @@ const suspendTicket = asyncHandler(async (req, res) => {
         throw new Error('Operatiune interzisa');
     }
 
+    // Un agent nu poate suspenda un tichet asignat altui agent. Adminul poate orice.
+    if (user.role === 'agent' && ticket.assignedTo && ticket.assignedTo.toString() !== req.user.id) {
+        res.status(403);
+        throw new Error('Acest tichet este asignat altui agent. Nu poti interveni asupra lui.');
+    }
+
     // Salvam momentul suspendarii pentru a putea ingheta corect SLA-ul
     const updatedTicket = await Ticket.findByIdAndUpdate(
         req.params.id,
@@ -435,6 +448,12 @@ const resumeTicket = asyncHandler(async (req, res) => {
     if (user.role !== 'agent' && user.role !== 'admin') {
         res.status(401);
         throw new Error('Doar personalul IT poate relua un tichet.');
+    }
+
+    // Un agent nu poate relua un tichet asignat altui agent. Adminul poate orice.
+    if (user.role === 'agent' && ticket.assignedTo && ticket.assignedTo.toString() !== req.user.id) {
+        res.status(403);
+        throw new Error('Acest tichet este asignat altui agent. Nu poti interveni asupra lui.');
     }
 
     if (ticket.status !== 'suspended') {
@@ -510,6 +529,13 @@ const closeTicket = asyncHandler(async (req, res) => {
         throw new Error('Tichetul este deja inchis.');
     }
 
+    // Un agent NU poate finaliza un tichet asignat altui agent. Adminul poate inchide orice;
+    // proprietarul (angajat) isi poate anula propriul tichet cat timp e 'new' (gestionat mai sus).
+    if (user.role === 'agent' && ticket.assignedTo && ticket.assignedTo.toString() !== req.user.id) {
+        res.status(403);
+        throw new Error('Acest tichet este asignat altui agent. Doar agentul responsabil sau un admin il pot rezolva.');
+    }
+
     const updatedTicket = await Ticket.findByIdAndUpdate(
         req.params.id,
         { status: 'closed' },
@@ -567,9 +593,12 @@ const closeTicket = asyncHandler(async (req, res) => {
           subject: `Notificare Inchidere: Tichet #${ticket.ticketId || ticket._id}`,
           html: message,
         });
+        console.log(`[CLOSE] Email de inchidere trimis cu succes catre angajat: ${ticketOwner.email}`);
+      } else {
+        console.log('[CLOSE] Email NU s-a trimis: proprietarul (angajatul) tichetului nu a fost gasit in DB.');
       }
     } catch (error) {
-      console.log('Notificarea post-rezolvare nu s-a trimis:', error)
+      console.log('[CLOSE] Notificarea post-rezolvare a ESUAT definitiv:', error.message);
     }
 
     res.status(200).json(updatedTicket);
@@ -638,6 +667,12 @@ const escalateTicket = asyncHandler(async (req, res) => {
     if (user.role !== 'agent' && user.role !== 'admin') {
         res.status(401);
         throw new Error('Functionalitate limitata angajatilor');
+    }
+
+    // Un agent nu poate transfera un tichet asignat altui agent. Adminul poate orice.
+    if (user.role === 'agent' && ticket.assignedTo && ticket.assignedTo.toString() !== req.user.id) {
+        res.status(403);
+        throw new Error('Acest tichet este asignat altui agent. Nu poti interveni asupra lui.');
     }
 
     const targetAgent = await User.findById(targetAgentId);
