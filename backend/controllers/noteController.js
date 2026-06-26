@@ -99,7 +99,7 @@ const addNote = asyncHandler(async (req, res) => {
               ${text}
             </blockquote>
             <br/>
-            <a href="http://localhost:5173/ticket/${ticket._id}" style="color: blue;">Apasa aici pentru a deschide tichetul in aplicatie</a>
+            <a href="http://localhost:3000/ticket/${ticket._id}" style="color: blue;">Apasa aici pentru a deschide tichetul in aplicatie</a>
           </div>
         `
 

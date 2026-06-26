@@ -22,7 +22,14 @@ const protect = asyncHandler(async (req, res, next) => {
       // Astfel, in controllere putem folosi direct req.user
       req.user = await User.findById(decoded.id).select('-password');
 
-      next();
+      // Cazul in care tokenul e valid dar contul a fost sters intre timp:
+      // oprim aici, altfel controllerele ar accesa req.user.id pe null si ar da crash 500.
+      if (!req.user) {
+        res.status(401);
+        throw new Error('Utilizatorul asociat acestui token nu mai exista.');
+      }
+
+      return next();
     } catch (error) {
       console.log('Eroare validare token JWT:', error);
       res.status(401);

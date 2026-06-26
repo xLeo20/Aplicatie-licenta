@@ -69,8 +69,21 @@ const createTicket = asyncHandler(async (req, res) => {
     throw new Error('Sesiune expirata');
   }
 
-  const lastTicket = await Ticket.findOne().sort({ ticketId: -1 });
-  const newTicketId = lastTicket && lastTicket.ticketId ? lastTicket.ticketId + 1 : 1;
+  // Generam ID-ul secvential ATOMIC printr-un contor dedicat, pentru a evita
+  // race condition-ul (doi useri care creeaza tichete simultan ar fi putut primi acelasi numar).
+  let counter = await Counter.findOne({ id: 'ticketId' });
+  if (!counter) {
+    // Prima rulare: initializam contorul de la cel mai mare ID existent, ca sa pastram continuitatea
+    const lastTicket = await Ticket.findOne().sort({ ticketId: -1 });
+    const startSeq = lastTicket && lastTicket.ticketId ? lastTicket.ticketId : 0;
+    counter = await Counter.create({ id: 'ticketId', seq: startSeq });
+  }
+  const updatedCounter = await Counter.findOneAndUpdate(
+    { id: 'ticketId' },
+    { $inc: { seq: 1 } },
+    { new: true }
+  );
+  const newTicketId = updatedCounter.seq;
 
   const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const pickupDeadline = new Date(Date.now() + 10 * 60 * 1000);
@@ -266,15 +279,30 @@ const updateTicket = asyncHandler(async (req, res) => {
     throw new Error('Nu a fost gasit id-ul acestui tichet.');
   }
 
-  if (ticket.user.toString() !== req.user.id && user.role !== 'agent' && user.role !== 'admin') {
+  const isStaff = user.role === 'agent' || user.role === 'admin';
+  const isOwner = ticket.user.toString() === req.user.id;
+
+  if (!isOwner && !isStaff) {
     res.status(401);
     throw new Error('Actiune permisa doar echipei operationale.');
   }
 
+  // Protectie anti mass-assignment: acceptam STRICT campurile permise, in functie de rol.
+  // Altfel un client ar putea trimite manual { status, deadline, assignedTo } si ar ocoli
+  // toata logica de business (suspend / close / assign / escalate).
+  const allowedFields = isStaff
+    ? ['issueType', 'category', 'description', 'priority']
+    : ['description']; // Owner-ul (angajat) poate corecta doar descrierea propriei solicitari
+
+  const updates = {};
+  allowedFields.forEach((field) => {
+    if (req.body[field] !== undefined) updates[field] = req.body[field];
+  });
+
   const updatedTicket = await Ticket.findByIdAndUpdate(
     req.params.id,
-    req.body,
-    { new: true }
+    updates,
+    { new: true, runValidators: true }
   );
 
   const io = req.app.get('io');

@@ -1,8 +1,10 @@
 // Middleware custom pentru a suprascrie formatul default de erori in Express
 // Transforma erorile HTML by default intr-un raspuns formatat JSON, ideal pentru REST APIs.
 const errorHandler = (err, req, res, next) => {
-  // Daca statusul e deja setat (ex: 400, 401, 404), il pastram. Daca nu, consideram ca e eroare interna de server (500).
-  const statusCode = res.statusCode ? res.statusCode : 500;
+  // Express seteaza implicit statusCode 200. Daca un controller arunca o eroare fara sa fi
+  // setat un cod (ex: un crash neasteptat), tratam cazul ca eroare interna de server (500),
+  // altfel am raspunde 200 OK cu un mesaj de eroare in body.
+  const statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
 
   res.status(statusCode);
 
