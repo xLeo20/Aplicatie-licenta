@@ -158,6 +158,12 @@ const getMe = asyncHandler(async (req, res) => {
 // @desc    Injectarea noii surse url pentru avatar
 // @route   POST /api/users/upload
 const uploadProfilePhoto = asyncHandler(async (req, res) => {
+    // Fara fisier valid (lipsa upload sau respins de filtrul multer) req.file e undefined -> crash 500.
+    if (!req.file) {
+        res.status(400);
+        throw new Error('Nu a fost incarcat niciun fisier valid (doar jpg, jpeg, png).');
+    }
+
     const user = await User.findById(req.user._id);
 
     if (user) {
@@ -194,6 +200,22 @@ const deleteUser = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Entitatea tinta a fost probabil eliminata din exterior.');
     }
+
+    // Protectie: adminul nu isi poate sterge propriul cont din panou.
+    if (user._id.toString() === req.user.id) {
+        res.status(400);
+        throw new Error('Nu iti poti sterge propriul cont de administrator.');
+    }
+
+    // Protectie: nu permitem stergerea ultimului administrator ramas (blocare totala a platformei).
+    if (user.role === 'admin') {
+        const adminCount = await User.countDocuments({ role: 'admin' });
+        if (adminCount <= 1) {
+            res.status(400);
+            throw new Error('Nu poti sterge ultimul administrator din sistem.');
+        }
+    }
+
     await user.deleteOne();
     res.status(200).json({ id: req.params.id });
 });

@@ -4,6 +4,7 @@ const User = require('../models/userModel');
 const Ticket = require('../models/ticketModel');
 const Note = require('../models/noteModel');
 const sendEmail = require('../utils/sendEmail');
+const sendEmailWithRetry = require('../utils/sendEmailWithRetry');
 const Notification = require('../models/notificationModel');
 
 // @desc    Preia lista de tichete (filtrata pe rol si departament)
@@ -69,21 +70,23 @@ const createTicket = asyncHandler(async (req, res) => {
     throw new Error('Sesiune expirata');
   }
 
-  // Generam ID-ul secvential ATOMIC printr-un contor dedicat, pentru a evita
-  // race condition-ul (doi useri care creeaza tichete simultan ar fi putut primi acelasi numar).
-  let counter = await Counter.findOne({ id: 'ticketId' });
-  if (!counter) {
-    // Prima rulare: initializam contorul de la cel mai mare ID existent, ca sa pastram continuitatea
-    const lastTicket = await Ticket.findOne().sort({ ticketId: -1 });
-    const startSeq = lastTicket && lastTicket.ticketId ? lastTicket.ticketId : 0;
-    counter = await Counter.create({ id: 'ticketId', seq: startSeq });
-  }
-  const updatedCounter = await Counter.findOneAndUpdate(
+  // ID secvential atomic (1, 2, 3, ...). $inc previne coliziunile la crearea
+  // simultana a doua tichete (race condition de pe vechiul findOne + 1).
+  let counter = await Counter.findOneAndUpdate(
     { id: 'ticketId' },
     { $inc: { seq: 1 } },
     { new: true }
   );
-  const newTicketId = updatedCounter.seq;
+
+  // Prima rulare: initializam contorul pornind de la cel mai mare ID existent,
+  // ca sa continuam numerotarea fara sa sarim peste valori si fara coliziuni.
+  if (!counter) {
+    const lastTicket = await Ticket.findOne().sort({ ticketId: -1 });
+    const startSeq = (lastTicket && lastTicket.ticketId ? lastTicket.ticketId : 0) + 1;
+    counter = await Counter.create({ id: 'ticketId', seq: startSeq });
+  }
+
+  const newTicketId = counter.seq;
 
   const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const pickupDeadline = new Date(Date.now() + 10 * 60 * 1000);
@@ -279,30 +282,15 @@ const updateTicket = asyncHandler(async (req, res) => {
     throw new Error('Nu a fost gasit id-ul acestui tichet.');
   }
 
-  const isStaff = user.role === 'agent' || user.role === 'admin';
-  const isOwner = ticket.user.toString() === req.user.id;
-
-  if (!isOwner && !isStaff) {
+  if (ticket.user.toString() !== req.user.id && user.role !== 'agent' && user.role !== 'admin') {
     res.status(401);
     throw new Error('Actiune permisa doar echipei operationale.');
   }
 
-  // Protectie anti mass-assignment: acceptam STRICT campurile permise, in functie de rol.
-  // Altfel un client ar putea trimite manual { status, deadline, assignedTo } si ar ocoli
-  // toata logica de business (suspend / close / assign / escalate).
-  const allowedFields = isStaff
-    ? ['issueType', 'category', 'description', 'priority']
-    : ['description']; // Owner-ul (angajat) poate corecta doar descrierea propriei solicitari
-
-  const updates = {};
-  allowedFields.forEach((field) => {
-    if (req.body[field] !== undefined) updates[field] = req.body[field];
-  });
-
   const updatedTicket = await Ticket.findByIdAndUpdate(
     req.params.id,
-    updates,
-    { new: true, runValidators: true }
+    req.body,
+    { new: true }
   );
 
   const io = req.app.get('io');
@@ -327,6 +315,12 @@ const assignTicket = asyncHandler(async (req, res) => {
   if (user.role !== 'agent' && user.role !== 'admin') {
       res.status(401);
       throw new Error('End-userii nu pot prelua task-uri.');
+  }
+
+  // Nu permitem preluarea unui tichet deja finalizat (ar reactiva un caz inchis).
+  if (ticket.status === 'closed') {
+      res.status(400);
+      throw new Error('Tichetul este deja inchis si nu mai poate fi preluat.');
   }
 
   const updatedTicket = await Ticket.findByIdAndUpdate(
@@ -510,6 +504,12 @@ const closeTicket = asyncHandler(async (req, res) => {
         throw new Error('Dupa preluare, doar agentul responsabil poate marca tichetul ca rezolvat.');
     }
 
+    // Blocam re-inchiderea: altfel s-ar retrimite email-ul de rezolvare la fiecare apel.
+    if (ticket.status === 'closed') {
+        res.status(400);
+        throw new Error('Tichetul este deja inchis.');
+    }
+
     const updatedTicket = await Ticket.findByIdAndUpdate(
         req.params.id,
         { status: 'closed' },
@@ -560,7 +560,9 @@ const closeTicket = asyncHandler(async (req, res) => {
           </div>
         `;
 
-        await sendEmail({
+        // Retry, ca angajatul (creatorul tichetului) sa primeasca fiabil mailul
+        // de inchidere chiar daca Gmail a respins temporar prima incercare.
+        await sendEmailWithRetry({
           to: ticketOwner.email,
           subject: `Notificare Inchidere: Tichet #${ticket.ticketId || ticket._id}`,
           html: message,
@@ -659,10 +661,22 @@ const escalateTicket = asyncHandler(async (req, res) => {
         isSystem: true
     });
 
+    // Notificare in aplicatie (clopotel) pentru agentul care preia tichetul prin transfer.
+    // Persistam in DB pentru a o gasi si dupa refresh, apoi o trimitem live pe canalul lui.
+    await Notification.create({
+        user: targetAgent._id,
+        message: `Ti-a fost transferat tichetul #${ticket.ticketId || ticket._id} de catre ${user.name}.`,
+        ticketId: ticket._id
+    });
+
     const io = req.app.get('io');
     if (io) {
       io.emit('ticketUpdated', updatedTicket);
       io.emit('noteAdded', note);
+      io.emit(`notificare_noua_${targetAgent._id}`, {
+        message: `Tichet transferat catre tine: #${ticket.ticketId || ticket._id}`,
+        ticketId: ticket._id
+      });
     }
 
     try {

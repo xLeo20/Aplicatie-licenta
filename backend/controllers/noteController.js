@@ -2,7 +2,8 @@ const asyncHandler = require('express-async-handler');
 const User = require('../models/userModel');
 const Ticket = require('../models/ticketModel');
 const Note = require('../models/noteModel');
-const sendEmail = require('../utils/sendEmail'); 
+const Notification = require('../models/notificationModel');
+const sendEmail = require('../utils/sendEmail');
 
 // @desc    Extrage istoricul conversatiei (notele) pentru un tichet specific
 // @route   GET /api/tickets/:ticketId/notes
@@ -76,13 +77,32 @@ const addNote = asyncHandler(async (req, res) => {
   // Reincarcam structura notei cu datele user-ului inainte de a o trimite pe frontend
   const populatedNote = await Note.findById(note._id).populate('user', 'name role');
 
+  // Cand un client (angajat) scrie, agentul asignat trebuie anuntat in clopotel.
+  // (Clientul primeste oricum email cand raspunde staff-ul, mai jos.)
+  const recipientId = (!isStaffMember && ticket.assignedTo) ? ticket.assignedTo : null;
+
   // Transmitem mesajul prin socket ca sa apara in chatul celuilalt utilizator fara sa dea F5
   const io = req.app.get('io');
   if (io) {
-    io.emit('notificare_noua', {
-      ticketId: req.params.ticketId,
-      message: `Mesaj nou adaugat de ${user.name} la tichetul #${ticket.ticketId || ticket._id.toString().slice(-4)}`,
-      type: 'note'
+    // 'noteAdded' reimprospateaza firul de mesaje live la ambele capete (ascultat in Ticket.jsx)
+    io.emit('noteAdded', populatedNote);
+
+    // Notificare live tintita pe canalul agentului asignat
+    if (recipientId) {
+      io.emit(`notificare_noua_${recipientId}`, {
+        ticketId: req.params.ticketId,
+        message: `Mesaj nou de la ${user.name} la tichetul #${ticket.ticketId || ticket._id.toString().slice(-4)}`,
+        type: 'note'
+      });
+    }
+  }
+
+  // Persistam notificarea in DB ca sa fie vizibila in clopotel chiar daca agentul era offline
+  if (recipientId) {
+    await Notification.create({
+      user: recipientId,
+      message: `Mesaj nou la tichetul #${ticket.ticketId || ticket._id.toString().slice(-4)} de la ${user.name}.`,
+      ticketId: ticket._id
     });
   }
 
@@ -99,7 +119,7 @@ const addNote = asyncHandler(async (req, res) => {
               ${text}
             </blockquote>
             <br/>
-            <a href="http://localhost:3000/ticket/${ticket._id}" style="color: blue;">Apasa aici pentru a deschide tichetul in aplicatie</a>
+            <a href="http://localhost:5173/ticket/${ticket._id}" style="color: blue;">Apasa aici pentru a deschide tichetul in aplicatie</a>
           </div>
         `
 

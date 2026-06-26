@@ -173,7 +173,14 @@ export const ticketSlice = createSlice({
       .addCase(getTickets.fulfilled, (state, action) => {
         state.isLoading = false
         state.isSuccess = true
-        state.tickets = action.payload
+        // Safeguard: eliminam eventualele tichete duplicate dupa _id, ca sa nu
+        // ajunga doua elemente cu aceeasi cheie React in liste (Tickets / Dashboard).
+        const seen = new Set()
+        state.tickets = (action.payload || []).filter((t) => {
+          if (!t || seen.has(t._id)) return false
+          seen.add(t._id)
+          return true
+        })
       })
       .addCase(getTickets.rejected, (state, action) => {
         state.isLoading = false
@@ -195,11 +202,11 @@ export const ticketSlice = createSlice({
       })
       .addCase(closeTicket.fulfilled, (state, action) => {
         state.isLoading = false
-        state.tickets.map((ticket) =>
-          ticket._id === action.payload._id
-            ? (ticket.status = 'closed')
-            : ticket
-        )
+        // Actualizam statusul in lista locala (Immer permite mutatia pe draft)
+        const target = state.tickets.find((t) => t._id === action.payload._id)
+        if (target) {
+          target.status = 'closed'
+        }
         state.ticket = action.payload
       })
       .addCase(assignTicket.fulfilled, (state, action) => {

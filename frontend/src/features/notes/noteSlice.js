@@ -57,7 +57,13 @@ export const noteSlice = createSlice({
       .addCase(getNotes.fulfilled, (state, action) => {
         state.isLoading = false
         state.isSuccess = true
-        state.notes = action.payload
+        // Safeguard: lista de note nu trebuie sa contina niciodata doua intrari cu acelasi _id.
+        const seen = new Set()
+        state.notes = (action.payload || []).filter((n) => {
+          if (!n || seen.has(n._id)) return false
+          seen.add(n._id)
+          return true
+        })
       })
       .addCase(getNotes.rejected, (state, action) => {
         state.isLoading = false
@@ -67,8 +73,13 @@ export const noteSlice = createSlice({
       .addCase(createNote.fulfilled, (state, action) => {
         state.isLoading = false
         state.isSuccess = true
-        // Evitam necesitatea unui nou GET request prin mutarea state-ului local imediat
-        state.notes.push(action.payload)
+        // Evitam necesitatea unui nou GET request prin mutarea state-ului local imediat.
+        // Verificam intai sa nu existe deja: evenimentul socket 'noteAdded' poate declansa
+        // un getNotes care aduce nota inainte sa soseasca raspunsul HTTP -> altfel ar aparea dublata.
+        const exists = state.notes.some((n) => n._id === action.payload._id)
+        if (!exists) {
+          state.notes.push(action.payload)
+        }
       })
       .addCase(createNote.rejected, (state, action) => {
         state.isLoading = false
