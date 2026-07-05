@@ -31,7 +31,7 @@ function Header() {
   // 1. Efect pentru incarcarea notificarilor din baza de date la pornire
   useEffect(() => {
     const fetchNotifications = async () => {
-        if (user && (user.role === 'admin' || user.role === 'agent')) {
+        if (user) {
             try {
                 const config = { headers: { Authorization: `Bearer ${user.token}` } };
                 const { data } = await axios.get('/api/notifications', config);
@@ -57,8 +57,8 @@ function Header() {
 
   // 2. Efect pentru ascultarea notificarilor LIVE (doar pe canalul agentului)
   useEffect(() => {
-    if (user && (user.role === 'admin' || user.role === 'agent')) {
-      const canalPersonalizat = `notificare_noua_${user._id}`;
+    if (user) {
+      const canalPersonalizat = `notificare_noua_${user._id || user.id}`;
       
       socket.on(canalPersonalizat, (data) => {
         toast.info(data.message, {

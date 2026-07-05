@@ -351,6 +351,20 @@ const assignTicket = asyncHandler(async (req, res) => {
     io.emit('noteAdded', note);
   }
 
+  await Notification.create({
+    user: ticket.user,
+    message: `Tichetul tău #${ticket.ticketId || ticket._id} a fost preluat de ${user.name}.`,
+    ticketId: ticket._id
+  });
+
+  if (io) {
+    // Trimitem alerta live către angajat
+    io.emit(`notificare_noua_${ticket.user.toString()}`, {
+      message: `Tichetul tău a fost preluat de ${user.name}.`,
+      ticketId: ticket._id
+    });
+  }
+
   try {
     const clientUser = await User.findById(ticket.user);
 
@@ -431,6 +445,19 @@ const suspendTicket = asyncHandler(async (req, res) => {
       io.emit('noteAdded', note);
     }
 
+    await Notification.create({
+    user: ticket.user,
+    message: `Tichetul tău #${ticket.ticketId || ticket._id} a fost suspendat.`,
+    ticketId: ticket._id
+  });
+
+  if (io) {
+    io.emit(`notificare_noua_${ticket.user.toString()}`, {
+      message: `Tichetul tău a fost suspendat.`,
+      ticketId: ticket._id
+    });
+  }
+
     res.status(200).json(updatedTicket);
 });
 
@@ -490,6 +517,19 @@ const resumeTicket = asyncHandler(async (req, res) => {
       io.emit('ticketUpdated', updatedTicket);
       io.emit('noteAdded', note);
     }
+
+    await Notification.create({
+    user: ticket.user,
+    message: `Tichetul tău #${ticket.ticketId || ticket._id} a fost reluat și este din nou în lucru.`,
+    ticketId: ticket._id
+  });
+
+  if (io) {
+    io.emit(`notificare_noua_${ticket.user.toString()}`, {
+      message: `Tichetul tău a fost reluat.`,
+      ticketId: ticket._id
+    });
+  }
 
     res.status(200).json(updatedTicket);
 });
@@ -556,6 +596,20 @@ const closeTicket = asyncHandler(async (req, res) => {
       io.emit('ticketUpdated', updatedTicket);
       io.emit('noteAdded', note);
     }
+
+    await Notification.create({
+    user: ticket.user,
+    message: `Tichetul tău #${ticket.ticketId || ticket._id} a fost marcat ca FINALIZAT.`,
+    ticketId: ticket._id
+  });
+
+  if (io) {
+    // Trimitem alerta live către angajat
+    io.emit(`notificare_noua_${ticket.user.toString()}`, {
+      message: `Tichetul tău a fost soluționat și închis.`,
+      ticketId: ticket._id
+    });
+  }
 
     try {
       const ticketOwner = await User.findById(ticket.user);
@@ -708,11 +762,25 @@ const escalateTicket = asyncHandler(async (req, res) => {
     if (io) {
       io.emit('ticketUpdated', updatedTicket);
       io.emit('noteAdded', note);
-      io.emit(`notificare_noua_${targetAgent._id}`, {
+      io.emit(`notificare_noua_${targetAgent._id.toString()}`, {
         message: `Tichet transferat catre tine: #${ticket.ticketId || ticket._id}`,
         ticketId: ticket._id
       });
     }
+
+    await Notification.create({
+    user: ticket.user,
+    message: `Tichetul tău #${ticket.ticketId || ticket._id} a fost transferat către ${targetAgent.name}.`,
+    ticketId: ticket._id
+  });
+
+  if (io) {
+    // Alerta live catre angajat
+    io.emit(`notificare_noua_${ticket.user.toString()}`, {
+      message: `Tichetul tău a fost transferat.`,
+      ticketId: ticket._id
+    });
+  }
 
     try {
         const message = `
