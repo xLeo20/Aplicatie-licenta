@@ -88,8 +88,30 @@ const createTicket = asyncHandler(async (req, res) => {
 
   const newTicketId = counter.seq;
 
-  const deadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  const pickupDeadline = new Date(Date.now() + 10 * 60 * 1000);
+  // Setăm valorile implicite (dacă dintr-un motiv anume prioritatea nu e recunoscută)
+  let oreRezolvare = 24;
+  let minutePreluare = 15;
+
+  // Adaptăm valorile în funcție de prioritatea selectată în formular
+  if (priority) {
+    switch (priority.toLowerCase()) {
+      case 'mica':
+        oreRezolvare = 72; 
+        minutePreluare = 60; 
+        break;
+      case 'medie':
+        oreRezolvare = 48; 
+        minutePreluare = 30; 
+        break;
+      case 'mare':
+        oreRezolvare = 24; 
+        minutePreluare = 15; 
+        break;
+    }
+  }
+
+  const deadline = new Date(Date.now() + oreRezolvare * 60 * 60 * 1000);
+  const pickupDeadline = new Date(Date.now() + minutePreluare * 60 * 1000);
 
   // 1. CREARE TICHET IN DB
   const ticket = await Ticket.create({

@@ -114,9 +114,22 @@ function AgentDashboard() {
       }
   }
 
-  const breachedSLA = tickets.filter(t => 
-      t.status !== 'closed' && t.deadline && new Date(t.deadline) < new Date()
-  ).length;
+  // Calculam tichetele care au incalcat Oricare dintre cele doua SLA-uri
+  const breachedSLA = tickets.filter(t => {
+      // Daca tichetul e inchis, nu il mai consideram in intarziere acum.
+      if (t.status === 'closed') return false;
+      
+      const now = new Date();
+      
+      // Regula 1: Daca e tichet "nou" si a depasit timpul de preluare
+      const pickupBreached = t.status === 'new' && t.pickupDeadline && new Date(t.pickupDeadline) < now;
+      
+      // Regula 2: Daca inca nu este inchis  si a depasit timpul de rezolvare
+      const resolveBreached = t.deadline && new Date(t.deadline) < now;
+      
+      // Returnam true daca incalca cel putin una din reguli
+      return pickupBreached || resolveBreached;
+  }).length;
 
   const statusData = [
     { name: 'Noi', value: newTickets, color: '#10b981' }, 
