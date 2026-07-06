@@ -352,6 +352,13 @@ const assignTicket = asyncHandler(async (req, res) => {
       throw new Error('Tichetul este deja preluat de alt agent. Foloseste functia de transfer pentru reasignare.');
   }
 
+  const updateData = { status: 'open', assignedTo: user.id };
+  
+  // Dacă momentul preluării a depășit timpul limită setat inițial, marcăm ca depășit
+  if (ticket.pickupDeadline && new Date() > new Date(ticket.pickupDeadline)) {
+      updateData.pickupSlaBreached = true;
+  }
+
   const updatedTicket = await Ticket.findByIdAndUpdate(
     req.params.id,
     { status: 'open', assignedTo: user.id },
@@ -597,6 +604,13 @@ const closeTicket = asyncHandler(async (req, res) => {
         res.status(403);
         throw new Error('Acest tichet este asignat altui agent. Doar agentul responsabil sau un admin il pot rezolva.');
     }
+
+    const updateData = { status: 'closed' };
+  
+  // Dacă momentul închiderii a depășit deadline-ul general, marcăm ca depășit
+  if (ticket.deadline && new Date() > new Date(ticket.deadline)) {
+      updateData.resolveSlaBreached = true;
+  }
 
     const updatedTicket = await Ticket.findByIdAndUpdate(
         req.params.id,

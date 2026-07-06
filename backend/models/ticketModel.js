@@ -79,6 +79,14 @@ const ticketSchema = mongoose.Schema({
         ref: 'User',
         required: false
     },
+    pickupSlaBreached: {
+        type: Boolean,
+        default: false
+    },
+    resolveSlaBreached: {
+        type: Boolean,
+        default: false
+    },
     attachment: {
       type: String, // Referinta catre locatia fisierului in serverul de upload (ex: /uploads/img.png)
       default: null

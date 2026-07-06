@@ -53,6 +53,16 @@ function Tickets() {
         (ticket.issueType && ticket.issueType.toLowerCase().includes(searchString)) || 
         (ticket.ticketId && ticket.ticketId.toString().includes(searchString))
 
+    // Verificăm dacă utilizatorul a selectat "SLA Depășit"
+    if (filterStatus === 'sla_breached') {
+      const now = new Date();
+      const isBreached = ticket.pickupSlaBreached || ticket.resolveSlaBreached || 
+          (ticket.status === 'new' && ticket.pickupDeadline && new Date(ticket.pickupDeadline) < now) || 
+          (ticket.status !== 'closed' && ticket.status !== 'suspended' && ticket.deadline && new Date(ticket.deadline) < now);
+      
+      return matchesSearch && isBreached;
+    }
+
     const matchesStatus = filterStatus === 'Toate Statusurile' || ticket.status === filterStatus
     
     return matchesSearch && matchesStatus
@@ -190,6 +200,8 @@ function Tickets() {
               <option value="open" className="bg-slate-900">Status: In Lucru</option>
               <option value="suspended" className="bg-slate-900">Status: Pe Pauza</option>
               <option value="closed" className="bg-slate-900">Status: Rezolvat</option>
+              {/* NOUA OPȚIUNE DE FILTRARE */}
+              <option value="sla_breached" className="bg-red-900 text-red-300">SLA Depășit</option>
             </select>
           </div>
 

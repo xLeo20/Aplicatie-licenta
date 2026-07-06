@@ -116,19 +116,17 @@ function AgentDashboard() {
 
   // Calculam tichetele care au incalcat Oricare dintre cele doua SLA-uri
   const breachedSLA = tickets.filter(t => {
-      // Daca tichetul e inchis, nu il mai consideram in intarziere acum.
-      if (t.status === 'closed') return false;
+      // 1. Verificăm istoricul: a fost DEJA salvat în baza de date ca fiind întârziat la preluare sau rezolvare?
+      if (t.pickupSlaBreached || t.resolveSlaBreached) {
+          return true;
+      }
       
+      // 2. Verificăm "live" pentru tichetele care încă rulează acum și tocmai au expirat
       const now = new Date();
+      const livePickupBreached = t.status === 'new' && t.pickupDeadline && new Date(t.pickupDeadline) < now;
+      const liveResolveBreached = t.status !== 'closed' && t.deadline && new Date(t.deadline) < now;
       
-      // Regula 1: Daca e tichet "nou" si a depasit timpul de preluare
-      const pickupBreached = t.status === 'new' && t.pickupDeadline && new Date(t.pickupDeadline) < now;
-      
-      // Regula 2: Daca inca nu este inchis  si a depasit timpul de rezolvare
-      const resolveBreached = t.deadline && new Date(t.deadline) < now;
-      
-      // Returnam true daca incalca cel putin una din reguli
-      return pickupBreached || resolveBreached;
+      return livePickupBreached || liveResolveBreached;
   }).length;
 
   const statusData = [

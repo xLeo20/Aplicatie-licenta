@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom'
-import { FaCircle } from 'react-icons/fa'
+import { FaCircle, FaFireAlt } from 'react-icons/fa'
 
 function TicketItem({ ticket }) {
   
-  const isOverdue = new Date(ticket.deadline) < new Date() && ticket.status !== 'closed' && ticket.status !== 'suspended';
+  // Verificăm dacă SLA-ul este depășit (fie din istoric DB, fie live)
+  const isSlaBreached = ticket.pickupSlaBreached || ticket.resolveSlaBreached || 
+      (ticket.status === 'new' && ticket.pickupDeadline && new Date(ticket.pickupDeadline) < new Date()) || 
+      (ticket.status !== 'closed' && ticket.status !== 'suspended' && ticket.deadline && new Date(ticket.deadline) < new Date());
   
   const deadlineDate = new Date(ticket.deadline).toLocaleString('ro-RO', {
       day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
@@ -55,14 +58,27 @@ function TicketItem({ ticket }) {
         </div>
 
         {/* Prioritate și Termen */}
-        <div className="flex flex-col items-center">
-          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md mb-1 border uppercase tracking-wider ${
-            ticket.priority === 'Mare' ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-white/10 text-white/70 border-white/20'
+        <div className="flex flex-col items-center gap-1">
+          
+          {/* 1. Eticheta de Prioritate */}
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider ${
+            ticket.priority === 'Mare' ? 'bg-red-500/20 text-red-400 border-red-500/40' : 
+            ticket.priority === 'Medie' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 
+            'bg-slate-700/50 text-slate-300 border-slate-600'
           }`}>
             {ticket.priority || 'Mică'}
           </span>
+          
+          {/* 2. ETICHETA DE SLA DEPĂȘIT  */}
+          {isSlaBreached && (
+            <span className="bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+              <FaFireAlt /> SLA Depășit
+            </span>
+          )}
+
+          {/* 3. Data Limită */}
           {ticket.status !== 'closed' && (
-             <div className="text-[10px] font-bold text-emerald-400 whitespace-nowrap">
+             <div className={`text-[10px] font-bold whitespace-nowrap mt-0.5 ${isSlaBreached ? 'text-red-400' : 'text-emerald-400'}`}>
                 {ticket.status === 'suspended' ? 'PE PAUZĂ' : (new Date(ticket.deadline).toLocaleDateString('ro-RO'))}
              </div>
           )}
